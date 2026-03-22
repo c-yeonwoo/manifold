@@ -15,6 +15,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     saveJSON(todayKey, items);
+    window.dispatchEvent(new Event("routine-updated"));
   }, [items, todayKey]);
 
   const toggle = (id: string) => {
