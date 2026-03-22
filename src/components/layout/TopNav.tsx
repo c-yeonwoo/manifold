@@ -1,12 +1,15 @@
 import { NavLink } from "react-router-dom";
 
 const tabs = [
-  { to: "/", label: "경제 공부" },
+  { to: "/", label: "루틴" },
+  { to: "/economy", label: "경제 공부" },
   { to: "/japanese", label: "일본어" },
+  { to: "/english", label: "영어" },
   { to: "/health", label: "헬스" },
   { to: "/finance", label: "지출" },
   { to: "/property", label: "부동산" },
   { to: "/reading", label: "독서" },
+  { to: "/portfolio", label: "포트폴리오" },
 ];
 
 export default function TopNav() {
