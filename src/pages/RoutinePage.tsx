@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { loadJSON, saveJSON, getTodayKey, DEFAULT_ROUTINES, type RoutineItem } from "@/lib/store";
+import { useMemo, useSyncExternalStore } from "react";
+import { loadJSON, getTodayKey, DEFAULT_ROUTINES, type RoutineItem } from "@/lib/store";
 
 const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 
@@ -20,8 +20,7 @@ function getDaysInYear(year: number) {
 function getCompletionRate(key: string): number {
   const data = loadJSON<RoutineItem[]>(key, []);
   if (!data.length) return 0;
-  const done = data.filter(i => i.done).length;
-  return done / data.length;
+  return data.filter(i => i.done).length / data.length;
 }
 
 function getRateColor(rate: number): string {
@@ -32,21 +31,31 @@ function getRateColor(rate: number): string {
   return "bg-[hsl(142_50%_45%)]";
 }
 
+// Subscribe to localStorage changes from Sidebar
+function useRoutineItems(): RoutineItem[] {
+  const todayKey = getTodayKey("routine");
+  const subscribe = (cb: () => void) => {
+    const handler = (e: StorageEvent) => { if (e.key === todayKey) cb(); };
+    // Also listen to custom event for same-tab updates
+    const customHandler = () => cb();
+    window.addEventListener("storage", handler);
+    window.addEventListener("routine-updated", customHandler);
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener("routine-updated", customHandler);
+    };
+  };
+  const getSnapshot = () => localStorage.getItem(todayKey) ?? "";
+  const raw = useSyncExternalStore(subscribe, getSnapshot);
+  return raw ? JSON.parse(raw) : DEFAULT_ROUTINES;
+}
+
 export default function RoutinePage() {
   const year = new Date().getFullYear();
   const days = useMemo(() => getDaysInYear(year), [year]);
   const today = new Date();
-  const todayStr = getTodayKey("routine");
+  const items = useRoutineItems();
 
-  const [items, setItems] = useState<RoutineItem[]>(() => loadJSON(todayStr, DEFAULT_ROUTINES));
-
-  useEffect(() => { saveJSON(todayStr, items); }, [items, todayStr]);
-
-  const toggle = (id: string) => {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, done: !it.done } : it));
-  };
-
-  // Build heatmap data
   const heatmapData = useMemo(() => {
     return days.map(d => {
       const key = getDateKey(d);
@@ -57,25 +66,19 @@ export default function RoutinePage() {
     });
   }, [days, items, today]);
 
-  // Group by week (columns) for GitHub-style grid
   const weeks: typeof heatmapData[number][][] = [];
   let currentWeek: typeof heatmapData[number][] = [];
-  // Pad first week
-  const firstDayOfWeek = days[0].getDay(); // 0=Sun
+  const firstDayOfWeek = days[0].getDay();
   for (let i = 0; i < firstDayOfWeek; i++) currentWeek.push({ date: new Date(0), rate: -1, isFuture: true, isToday: false });
   heatmapData.forEach(d => {
     currentWeek.push(d);
-    if (currentWeek.length === 7) {
-      weeks.push(currentWeek);
-      currentWeek = [];
-    }
+    if (currentWeek.length === 7) { weeks.push(currentWeek); currentWeek = []; }
   });
   if (currentWeek.length) {
     while (currentWeek.length < 7) currentWeek.push({ date: new Date(0), rate: -1, isFuture: true, isToday: false });
     weeks.push(currentWeek);
   }
 
-  // Month label positions
   const monthPositions = useMemo(() => {
     const pos: { label: string; col: number }[] = [];
     let lastMonth = -1;
@@ -113,9 +116,8 @@ export default function RoutinePage() {
       </div>
 
       {/* Heatmap */}
-      <div className="bg-card rounded-lg border border-border p-5 mb-6 overflow-x-auto">
+      <div className="bg-card rounded-lg border border-border p-5 overflow-x-auto">
         <h3 className="text-[13px] font-medium text-foreground mb-4">{year}년 루틴 달성 현황</h3>
-        {/* Month labels */}
         <div className="flex mb-1 ml-8" style={{ gap: 0 }}>
           {monthPositions.map((m, i) => {
             const nextCol = monthPositions[i + 1]?.col ?? weeks.length;
@@ -128,7 +130,6 @@ export default function RoutinePage() {
           })}
         </div>
         <div className="flex gap-0">
-          {/* Day labels */}
           <div className="flex flex-col mr-1" style={{ gap: 2 }}>
             {["일","월","화","수","목","금","토"].map((d, i) => (
               <span key={d} className="text-[9px] text-muted-foreground h-[12px] leading-[12px]" style={{ visibility: i % 2 === 1 ? "visible" : "hidden" }}>
@@ -136,7 +137,6 @@ export default function RoutinePage() {
               </span>
             ))}
           </div>
-          {/* Grid */}
           <div className="flex" style={{ gap: 2 }}>
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
@@ -157,7 +157,6 @@ export default function RoutinePage() {
             ))}
           </div>
         </div>
-        {/* Legend */}
         <div className="flex items-center gap-1.5 mt-3 ml-8">
           <span className="text-[10px] text-muted-foreground mr-1">Less</span>
           <div className="w-[12px] h-[12px] rounded-[2px] bg-secondary" />
@@ -166,33 +165,6 @@ export default function RoutinePage() {
           <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(142_50%_38%)]" />
           <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(142_50%_45%)]" />
           <span className="text-[10px] text-muted-foreground ml-1">More</span>
-        </div>
-      </div>
-
-      {/* Today's checklist */}
-      <div className="bg-card rounded-lg border border-border p-5">
-        <h3 className="text-[13px] font-medium text-foreground mb-4">오늘의 루틴</h3>
-        <div className="space-y-1.5">
-          {items.map(item => (
-            <button
-              key={item.id}
-              onClick={() => toggle(item.id)}
-              className="flex items-center gap-3 w-full text-left py-1.5 px-2 rounded-md hover:bg-secondary/50 transition-colors duration-150 group"
-            >
-              <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 shrink-0 ${
-                item.done ? "border-[hsl(142_50%_45%)] bg-[hsl(142_50%_45%/0.2)]" : "border-muted-foreground/30 group-hover:border-primary"
-              }`}>
-                {item.done && (
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1.5 4L3.2 5.7L6.5 2.3" stroke="hsl(142, 50%, 45%)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </span>
-              <span className={`text-[13px] transition-colors duration-150 ${item.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                {item.label}
-              </span>
-            </button>
-          ))}
         </div>
       </div>
     </div>
