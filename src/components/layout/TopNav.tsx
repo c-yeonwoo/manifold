@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import ProfileMenu from "./ProfileMenu";
+import ThemeToggle from "./ThemeToggle";
 
 const tabs = [
   { to: "/", label: "비전 보드" },
@@ -37,6 +38,7 @@ export default function TopNav() {
           );
         })}
       </div>
+      <ThemeToggle />
       <ProfileMenu />
     </nav>
   );
