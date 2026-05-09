@@ -36,11 +36,14 @@ export async function getActiveTemplate(userId: string): Promise<{
   template: RoutineTemplate;
   items: RoutineTemplateItem[];
 }> {
+  const today = todayStr();
   const { data: existing, error } = await supabase
     .from("routine_templates")
     .select("*")
     .eq("user_id", userId)
     .eq("is_active", true)
+    .lte("effective_from", today)
+    .order("effective_from", { ascending: false })
     .order("version", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -64,8 +67,10 @@ export async function getActiveTemplate(userId: string): Promise<{
       phase: s.phase,
       position: s.position,
     }));
-    const { error: e2 } = await supabase.from("routine_template_items").insert(seedRows);
-    if (e2) throw e2;
+    if (seedRows.length) {
+      const { error: e2 } = await supabase.from("routine_template_items").insert(seedRows);
+      if (e2) throw e2;
+    }
   }
 
   const { data: items, error: e3 } = await supabase
