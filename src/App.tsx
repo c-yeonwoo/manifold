@@ -14,6 +14,9 @@ import FinancePage from "@/pages/FinancePage";
 import MantraPage from "@/pages/MantraPage";
 import AuthPage from "@/pages/AuthPage";
 import ReviewPage from "@/pages/ReviewPage";
+import CommunityPage from "@/pages/CommunityPage";
+import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
+import PublicProfilePage from "@/pages/PublicProfilePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +44,9 @@ const App = () => (
               <Route path="/finance" element={<FinancePage />} />
               <Route path="/mantra" element={<MantraPage />} />
               <Route path="/review" element={<ReviewPage />} />
+              <Route path="/community" element={<CommunityPage />} />
+              <Route path="/u/:handle" element={<PublicProfilePage />} />
+              <Route path="/settings/profile" element={<ProfileSettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
