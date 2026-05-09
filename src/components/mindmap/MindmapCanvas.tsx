@@ -452,6 +452,7 @@ function GoalNode({
   goal,
   done,
   total,
+  dimmed,
   onClick,
 }: {
   cx: number;
@@ -460,6 +461,7 @@ function GoalNode({
   goal: Goal;
   done: number;
   total: number;
+  dimmed?: boolean;
   onClick: () => void;
 }) {
   const pct = total ? done / total : 0;
