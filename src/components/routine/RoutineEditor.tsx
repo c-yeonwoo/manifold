@@ -102,6 +102,22 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     });
   };
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const reorder = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    setDrafts((prev) => {
+      const from = prev.findIndex((d) => d.tempId === sourceId);
+      const to = prev.findIndex((d) => d.tempId === targetId);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   const save = async () => {
     if (!user) {
       toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
