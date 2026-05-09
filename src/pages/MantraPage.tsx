@@ -12,7 +12,7 @@ export default function MantraPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="w-4 h-4 text-primary" />
-            <h1 className="text-xl font-medium tracking-tight">내 만트라</h1>
+            <h1 className="text-xl font-medium tracking-tight">내 확언</h1>
           </div>
           <p className="text-[13px] text-muted-foreground">
             소리내어 읽고, 매일 새겨두는 한 줄들. 단축키 <span className="font-mono text-foreground/70">M</span>으로 언제든 풀스크린 진입.
