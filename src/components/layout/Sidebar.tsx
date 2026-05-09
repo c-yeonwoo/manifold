@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { Sparkles, Link2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QUOTES } from "@/lib/store";
 import { useMantra } from "@/lib/mantra-context";
 import { useRoutine } from "@/lib/routine-context";
+import CategoryBadge from "@/components/routine/CategoryBadge";
 
 export default function Sidebar() {
   const { items, checkedIds, toggle, loading } = useRoutine();
@@ -62,12 +63,12 @@ export default function Sidebar() {
                   )}
                 </span>
                 <span
-                  className={`text-[12px] leading-tight transition-colors duration-150 inline-flex items-center gap-1 ${
+                  className={`text-[13px] leading-tight transition-colors duration-150 inline-flex items-center gap-1.5 flex-1 min-w-0 ${
                     done ? "text-muted-foreground line-through" : "text-sidebar-foreground"
                   }`}
                 >
-                  {item.goal_id && <Link2 className="w-2.5 h-2.5 text-primary/70 shrink-0" />}
-                  {item.label}
+                  <span className="truncate">{item.label}</span>
+                  {item.goal_id && <CategoryBadge goalId={item.goal_id} />}
                 </span>
               </button>
             );

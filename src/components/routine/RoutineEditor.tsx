@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Link as LinkIcon, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
 import { useRoutine, notifyRoutineTemplateChanged } from "@/lib/routine-context";
 import { loadGoals, CATEGORIES } from "@/lib/goals";
+import CategoryBadge from "./CategoryBadge";
 
 interface DraftItem {
   tempId: string;
@@ -76,7 +77,7 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
       ...prev,
       {
         tempId: `tmp-${Math.random().toString(36).slice(2)}`,
-        label: `[${categoryLabel}] ${actionLabel}`,
+        label: actionLabel,
         goal_id: goalId,
         action_id: actionId,
       },
@@ -102,7 +103,14 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
   };
 
   const save = async () => {
-    if (!user || !template) return;
+    if (!user) {
+      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
+      return;
+    }
+    if (!template) {
+      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     const cleaned = drafts.filter((d) => d.label.trim().length > 0);
     if (cleaned.length === 0) {
       toast.error("최소 1개 이상의 항목이 필요합니다.");
@@ -122,9 +130,9 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
       notifyRoutineTemplateChanged();
       await refresh();
       onOpenChange(false);
-    } catch (err) {
-      console.error(err);
-      toast.error("저장 실패");
+    } catch (err: any) {
+      console.error("[routine] save failed", err);
+      toast.error(`저장 실패: ${err?.message ?? "알 수 없는 오류"}`);
     } finally {
       setSaving(false);
     }
@@ -159,20 +167,16 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
                 )}
                 {drafts.map((d, idx) => (
                   <div key={d.tempId} className="flex items-center gap-1.5">
-                    <span className="w-5 text-[10px] font-mono text-muted-foreground text-right">
+                    <span className="w-5 text-[11px] font-mono text-muted-foreground text-right">
                       {idx + 1}
                     </span>
-                    {d.goal_id ? (
-                      <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-                    ) : (
-                      <span className="w-3.5 h-3.5 shrink-0" />
-                    )}
                     <Input
                       value={d.label}
                       onChange={(e) => update(d.tempId, { label: e.target.value })}
                       placeholder="항목 이름"
-                      className="text-[13px] h-8"
+                      className="text-[14px] h-9"
                     />
+                    {d.goal_id && <CategoryBadge goalId={d.goal_id} size="sm" />}
                     <button
                       onClick={() => move(d.tempId, -1)}
                       disabled={idx === 0}
