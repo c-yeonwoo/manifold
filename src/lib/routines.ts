@@ -35,10 +35,9 @@ export const DEFAULT_SEED: Array<Pick<RoutineTemplateItem, "label" | "phase" | "
   { label: "찬물 샤워",      phase: 1, position: 1 },
   { label: "프로틴 & 영양제", phase: 1, position: 2 },
   { label: "독서 30분",      phase: 1, position: 3 },
-  { label: "회사 업무",      phase: 2, position: 0 },
-  { label: "헬스",           phase: 3, position: 0 },
-  { label: "지출 기록",      phase: 3, position: 1 },
-  { label: "하루 점검",      phase: 3, position: 2 },
+  { label: "헬스",           phase: 1, position: 4 },
+  { label: "지출 기록",      phase: 1, position: 5 },
+  { label: "하루 점검",      phase: 1, position: 6 },
 ];
 
 export async function getActiveTemplate(userId: string): Promise<{
