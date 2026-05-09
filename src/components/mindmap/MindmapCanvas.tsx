@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, goalsByCategory, todayProgress, type CategoryMeta, type Goal } from "@/lib/goals";
+import { CATEGORIES, goalsByCategory, todayProgress, type CategoryKey, type CategoryMeta, type Goal } from "@/lib/goals";
 import { useSyncExternalStore, useRef, useState, useCallback, useEffect } from "react";
 
 function useGoalsTick() {
@@ -108,8 +108,80 @@ export default function MindmapCanvas() {
     nav(to);
   };
 
-  const reset = () => setView({ x: 0, y: 0, scale: 1 });
+  // ----- Two-stage focus: 1st click zooms+centers, 2nd click navigates -----
+  const [focusedKey, setFocusedKey] = useState<CategoryKey | null>(null);
+  const animRef = useRef<number | null>(null);
+
+  const cancelAnim = () => {
+    if (animRef.current != null) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+  };
+
+  const animateView = (target: { x: number; y: number; scale: number }) => {
+    cancelAnim();
+    const start = { ...view };
+    const t0 = performance.now();
+    const dur = 380;
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      setView({
+        x: start.x + (target.x - start.x) * e,
+        y: start.y + (target.y - start.y) * e,
+        scale: start.scale + (target.scale - start.scale) * e,
+      });
+      if (t < 1) animRef.current = requestAnimationFrame(step);
+      else animRef.current = null;
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  const focusOnCategory = (nx: number, ny: number) => {
+    const targetScale = 1.8;
+    animateView({
+      x: CX - nx * targetScale,
+      y: CY - ny * targetScale,
+      scale: targetScale,
+    });
+  };
+
+  const handleCategoryClick = (key: CategoryKey, nx: number, ny: number) => {
+    if (panState.current.moved) return;
+    if (focusedKey === key) {
+      nav(`/category/${key}`);
+      return;
+    }
+    setFocusedKey(key);
+    focusOnCategory(nx, ny);
+  };
+
+  const clearFocus = () => {
+    if (focusedKey == null) return;
+    setFocusedKey(null);
+    animateView({ x: 0, y: 0, scale: 1 });
+  };
+
+  // cancel running anim on user pan / wheel
+  useEffect(() => {
+    const sv = svgRef.current;
+    if (!sv) return;
+    const stop = () => cancelAnim();
+    sv.addEventListener("pointerdown", stop);
+    sv.addEventListener("wheel", stop);
+    return () => {
+      sv.removeEventListener("pointerdown", stop);
+      sv.removeEventListener("wheel", stop);
+    };
+  }, []);
+
+  const reset = () => {
+    setFocusedKey(null);
+    animateView({ x: 0, y: 0, scale: 1 });
+  };
   const zoomBy = (factor: number) => {
+    cancelAnim();
     setView((v) => {
       const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
       const k = newScale / v.scale;
@@ -171,7 +243,17 @@ export default function MindmapCanvas() {
         onPointerCancel={onPointerUp}
       >
         {/* invisible background so empty space catches drags */}
-        <rect x={0} y={0} width={W} height={H} fill="transparent" />
+        <rect
+          x={0}
+          y={0}
+          width={W}
+          height={H}
+          fill="transparent"
+          onClick={() => {
+            if (panState.current.moved) return;
+            clearFocus();
+          }}
+        />
 
         <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
         {/* edges from center to category */}
@@ -247,7 +329,9 @@ export default function MindmapCanvas() {
             key={n.key}
             node={n}
             delay={i * 80}
-            onClick={() => guardedNav(`/category/${n.key}`)}
+            focused={focusedKey === n.key}
+            dimmed={focusedKey != null && focusedKey !== n.key}
+            onClick={() => handleCategoryClick(n.key, n.x, n.y)}
           />
         ))}
 
@@ -256,6 +340,7 @@ export default function MindmapCanvas() {
           n.goals.map((g, gi) => {
             const gp = goalPos(n, gi, n.goals.length);
             const p = todayProgress(g);
+            const dimmed = focusedKey != null && focusedKey !== n.key;
             return (
               <GoalNode
                 key={g.id}
@@ -265,6 +350,7 @@ export default function MindmapCanvas() {
                 goal={g}
                 done={p.done}
                 total={p.total}
+                dimmed={dimmed}
                 onClick={() => guardedNav(`/category/${n.key}/goal/${g.id}`)}
               />
             );
@@ -273,7 +359,9 @@ export default function MindmapCanvas() {
         </g>
       </svg>
       <p className="text-center text-[10px] text-muted-foreground mt-1">
-        드래그로 이동 · 휠 또는 +/− 버튼으로 확대/축소
+        {focusedKey
+          ? "한 번 더 클릭하면 상세 페이지로 · 빈 공간 클릭 시 닫힘"
+          : "카테고리 클릭 → 포커스 · 한 번 더 클릭 → 상세"}
       </p>
     </div>
   );
@@ -291,25 +379,34 @@ function goalPos(n: { x: number; y: number; angle: number }, gi: number, total: 
 function CategoryNode({
   node,
   delay,
+  focused,
+  dimmed,
   onClick,
 }: {
   node: CategoryMeta & { x: number; y: number; goals: Goal[] };
   delay: number;
+  focused: boolean;
+  dimmed: boolean;
   onClick: () => void;
 }) {
   return (
     <g
       onClick={onClick}
-      style={{ cursor: "pointer", animation: `fade-up 0.5s ${delay}ms both` }}
-      className="hover:opacity-90 transition-opacity"
+      style={{
+        cursor: "pointer",
+        animation: `fade-up 0.5s ${delay}ms both`,
+        opacity: dimmed ? 0.25 : 1,
+        transition: "opacity 0.3s ease",
+      }}
     >
       <circle
         cx={node.x}
         cy={node.y}
         r={42}
         fill={`hsl(${node.hue} 30% 12%)`}
-        stroke={`hsl(${node.hue} 50% 55%)`}
-        strokeWidth={1.5}
+        stroke={`hsl(${node.hue} ${focused ? 70 : 50}% ${focused ? 65 : 55}%)`}
+        strokeWidth={focused ? 2.5 : 1.5}
+        style={{ transition: "stroke 0.3s ease, stroke-width 0.3s ease" }}
       />
       <text
         x={node.x}
@@ -330,8 +427,20 @@ function CategoryNode({
         fill="hsl(var(--muted-foreground))"
         fontSize={9}
       >
-        {node.goals.length}/3
+        {node.goals.length} goals
       </text>
+      {focused && (
+        <text
+          x={node.x}
+          y={node.y + 64}
+          textAnchor="middle"
+          fill="hsl(var(--primary))"
+          fontSize={8}
+          style={{ fontFamily: "var(--mono-font)", letterSpacing: 0.5 }}
+        >
+          ↳ 한 번 더 클릭 → 상세
+        </text>
+      )}
     </g>
   );
 }
@@ -343,6 +452,7 @@ function GoalNode({
   goal,
   done,
   total,
+  dimmed,
   onClick,
 }: {
   cx: number;
@@ -351,6 +461,7 @@ function GoalNode({
   goal: Goal;
   done: number;
   total: number;
+  dimmed?: boolean;
   onClick: () => void;
 }) {
   const pct = total ? done / total : 0;
@@ -367,7 +478,15 @@ function GoalNode({
     lines.push(t.slice(6));
   }
   return (
-    <g onClick={onClick} style={{ cursor: "pointer" }} className="hover:opacity-90">
+    <g
+      onClick={onClick}
+      style={{
+        cursor: "pointer",
+        opacity: dimmed ? 0.2 : 1,
+        transition: "opacity 0.3s ease",
+      }}
+      className="hover:opacity-90"
+    >
       <circle cx={cx} cy={cy} r={r} fill="hsl(var(--card))" stroke={`hsl(${hue} 40% 30%)`} strokeWidth={1} />
       <circle
         cx={cx}
