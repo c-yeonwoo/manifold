@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Trophy, RotateCcw } from "lucide-react";
 import {
   getCategory,
   getGoal,
@@ -8,11 +8,14 @@ import {
   saveLog,
   todayStr,
   listLogs,
+  completeGoal,
+  reopenGoal,
   type CategoryKey,
 } from "@/lib/goals";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import GoalForm from "@/components/goals/GoalForm";
+import { toast } from "sonner";
 
 function useTick() {
   return useSyncExternalStore(
