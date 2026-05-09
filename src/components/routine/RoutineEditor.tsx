@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Sparkles, Link as LinkIcon } from "lucide-react";
+import { Plus, Trash2, Sparkles, Link as LinkIcon, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
@@ -12,16 +12,9 @@ import VisionActionPicker, { type PickedAction } from "./VisionActionPicker";
 interface DraftItem {
   tempId: string;
   label: string;
-  phase: number;
   goal_id: string | null;
   action_id: string | null;
 }
-
-const PHASE_LABELS: Record<number, string> = {
-  1: "P1 — Mind & Clean Up",
-  2: "P2 — Work",
-  3: "P3 — Work-out",
-};
 
 interface Props {
   open: boolean;
@@ -35,14 +28,12 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Hydrate drafts when opening
   useEffect(() => {
     if (open) {
       setDrafts(
         items.map((it: RoutineTemplateItem) => ({
           tempId: it.id,
           label: it.label,
-          phase: it.phase,
           goal_id: it.goal_id,
           action_id: it.action_id,
         }))
@@ -54,10 +45,10 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     drafts.filter((d) => d.goal_id && d.action_id).map((d) => `${d.goal_id}:${d.action_id}`)
   );
 
-  const addCustom = (phase: number) => {
+  const addCustom = () => {
     setDrafts((prev) => [
       ...prev,
-      { tempId: `tmp-${Math.random().toString(36).slice(2)}`, label: "", phase, goal_id: null, action_id: null },
+      { tempId: `tmp-${Math.random().toString(36).slice(2)}`, label: "", goal_id: null, action_id: null },
     ]);
   };
 
@@ -67,7 +58,6 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
       ...picks.map((p) => ({
         tempId: `tmp-${Math.random().toString(36).slice(2)}`,
         label: `[${p.category}] ${p.actionLabel}`,
-        phase: 2,
         goal_id: p.goalId,
         action_id: p.actionId,
       })),
@@ -80,8 +70,17 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
   const remove = (tempId: string) => {
     setDrafts((prev) => prev.filter((d) => d.tempId !== tempId));
   };
-
-  const movePhase = (tempId: string, phase: number) => update(tempId, { phase });
+  const move = (tempId: string, dir: -1 | 1) => {
+    setDrafts((prev) => {
+      const idx = prev.findIndex((d) => d.tempId === tempId);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
 
   const save = async () => {
     if (!user || !template) return;
@@ -92,19 +91,14 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     }
     setSaving(true);
     try {
-      // Compute positions per phase
-      const byPhase: Record<number, DraftItem[]> = { 1: [], 2: [], 3: [] };
-      cleaned.forEach((d) => byPhase[d.phase].push(d));
-      const items = Object.entries(byPhase).flatMap(([phaseStr, list]) =>
-        list.map((d, idx) => ({
-          label: d.label.trim(),
-          phase: Number(phaseStr),
-          position: idx,
-          goal_id: d.goal_id,
-          action_id: d.action_id,
-        }))
-      );
-      await publishNewVersion(user.id, template.version, items);
+      const newItems = cleaned.map((d, idx) => ({
+        label: d.label.trim(),
+        phase: 1, // legacy column kept; not used in UI
+        position: idx,
+        goal_id: d.goal_id,
+        action_id: d.action_id,
+      }));
+      await publishNewVersion(user.id, template.version, newItems);
       toast.success(`루틴 v${template.version + 1} 적용됨`);
       notifyRoutineTemplateChanged();
       await refresh();
@@ -132,58 +126,57 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 py-2">
-            {[1, 2, 3].map((phase) => {
-              const list = drafts.filter((d) => d.phase === phase);
-              return (
-                <div key={phase} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-wider text-primary/80">
-                      {PHASE_LABELS[phase]}
-                    </span>
-                    <button
-                      onClick={() => addCustom(phase)}
-                      className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> 항목 추가
-                    </button>
-                  </div>
-                  {list.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground italic pl-1">비어있음</p>
-                  )}
-                  {list.map((d) => (
-                    <div key={d.tempId} className="flex items-center gap-2">
-                      {d.goal_id ? (
-                        <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-                      ) : (
-                        <span className="w-3.5 h-3.5 shrink-0" />
-                      )}
-                      <Input
-                        value={d.label}
-                        onChange={(e) => update(d.tempId, { label: e.target.value })}
-                        placeholder="항목 이름"
-                        className="text-[13px] h-8"
-                      />
-                      <select
-                        value={d.phase}
-                        onChange={(e) => movePhase(d.tempId, Number(e.target.value))}
-                        className="text-[11px] bg-secondary text-foreground rounded px-1.5 h-8 border border-border"
-                      >
-                        <option value={1}>P1</option>
-                        <option value={2}>P2</option>
-                        <option value={3}>P3</option>
-                      </select>
-                      <button
-                        onClick={() => remove(d.tempId)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+          <div className="space-y-2 py-2">
+            {drafts.length === 0 && (
+              <p className="text-[12px] text-muted-foreground italic">
+                항목이 없어요. 아래 버튼으로 추가해주세요.
+              </p>
+            )}
+            {drafts.map((d, idx) => (
+              <div key={d.tempId} className="flex items-center gap-1.5">
+                <span className="w-6 text-[10px] font-mono text-muted-foreground text-right">
+                  {idx + 1}.
+                </span>
+                {d.goal_id ? (
+                  <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                ) : (
+                  <span className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <Input
+                  value={d.label}
+                  onChange={(e) => update(d.tempId, { label: e.target.value })}
+                  placeholder="항목 이름"
+                  className="text-[13px] h-8"
+                />
+                <button
+                  onClick={() => move(d.tempId, -1)}
+                  disabled={idx === 0}
+                  className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => move(d.tempId, 1)}
+                  disabled={idx === drafts.length - 1}
+                  className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => remove(d.tempId)}
+                  className="p-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+
+            <button
+              onClick={addCustom}
+              className="text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mt-2"
+            >
+              <Plus className="w-3.5 h-3.5" /> 항목 추가
+            </button>
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
