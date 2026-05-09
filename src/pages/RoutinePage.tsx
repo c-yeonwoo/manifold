@@ -122,57 +122,49 @@ export default function RoutinePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[1, 2, 3].map((phase) => {
-            const phaseItems = items.filter((it) => it.phase === phase);
-            const doneInPhase = phaseItems.filter((it) => checkedIds.includes(it.id)).length;
-            const pct = phaseItems.length ? (doneInPhase / phaseItems.length) * 100 : 0;
+        <div className="h-1 bg-secondary rounded-full mb-4 overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-500"
+            style={{ width: `${todayPct}%` }}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          {items.length === 0 && (
+            <p className="text-[12px] text-muted-foreground italic">
+              아직 루틴이 없어요. 우상단 "루틴 편집"을 눌러 시작해보세요.
+            </p>
+          )}
+          {items.map((item: RoutineTemplateItem) => {
+            const done = checkedIds.includes(item.id);
             return (
-              <div key={phase}>
-                <div className="text-[11px] uppercase tracking-wider text-primary/80 mb-2">
-                  {PHASE_LABELS[phase]}
-                </div>
-                <div className="h-1 bg-secondary rounded-full mb-2.5 overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="space-y-1.5">
-                  {phaseItems.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground/60 italic">없음</p>
+              <button
+                key={item.id}
+                onClick={() => toggle(item)}
+                className="flex items-start gap-2.5 w-full text-left py-1 group"
+              >
+                <span
+                  className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
+                    done
+                      ? "border-success bg-success/20"
+                      : "border-muted-foreground/30 group-hover:border-primary"
+                  }`}
+                >
+                  {done && (
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                      <path d="M1.5 4L3.2 5.7L6.5 2.3" stroke="hsl(var(--success))" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   )}
-                  {phaseItems.map((item: RoutineTemplateItem) => {
-                    const done = checkedIds.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => toggle(item)}
-                        className="flex items-start gap-2 w-full text-left py-0.5 group"
-                      >
-                        <span
-                          className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
-                            done
-                              ? "border-success bg-success/20"
-                              : "border-muted-foreground/30 group-hover:border-primary"
-                          }`}
-                        >
-                          {done && (
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                              <path d="M1.5 4L3.2 5.7L6.5 2.3" stroke="hsl(var(--success))" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </span>
-                        <span
-                          className={`text-[13px] leading-snug inline-flex items-center gap-1 ${
-                            done ? "text-muted-foreground line-through" : "text-foreground"
-                          }`}
-                        >
-                          {item.goal_id && <Link2 className="w-3 h-3 text-primary/70 shrink-0" />}
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                </span>
+                <span
+                  className={`text-[13px] leading-snug inline-flex items-center gap-1 ${
+                    done ? "text-muted-foreground line-through" : "text-foreground"
+                  }`}
+                >
+                  {item.goal_id && <Link2 className="w-3 h-3 text-primary/70 shrink-0" />}
+                  {item.label}
+                </span>
+              </button>
             );
           })}
         </div>
