@@ -146,7 +146,12 @@ export default function GoalDetailPage() {
       {/* Vision */}
       <div
         className="rounded-xl border p-6 mb-6 relative overflow-hidden"
-        style={{ borderColor: `hsl(${meta.hue} 30% 25%)`, background: `linear-gradient(135deg, hsl(${meta.hue} 30% 10%), hsl(var(--card)))` }}
+        style={{
+          borderColor: isLight ? `hsl(${meta.hue} 40% 80%)` : `hsl(${meta.hue} 30% 25%)`,
+          background: isLight
+            ? `linear-gradient(135deg, hsl(${meta.hue} 60% 95%), hsl(var(--card)))`
+            : `linear-gradient(135deg, hsl(${meta.hue} 30% 10%), hsl(var(--card)))`,
+        }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
