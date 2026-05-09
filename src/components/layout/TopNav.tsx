@@ -5,7 +5,7 @@ const tabs = [
   { to: "/", label: "마인드맵" },
   { to: "/routine", label: "루틴" },
   { to: "/finance", label: "지출" },
-  { to: "/mantra", label: "만트라" },
+  { to: "/mantra", label: "확언" },
 ];
 
 export default function TopNav() {

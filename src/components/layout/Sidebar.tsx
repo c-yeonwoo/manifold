@@ -115,7 +115,7 @@ function DailyAffirmation({ fallbackQuote }: { fallbackQuote: string }) {
           to="/mantra"
           className="text-[10px] text-primary/70 hover:text-primary inline-flex items-center gap-1"
         >
-          <Sparkles className="w-3 h-3" /> 내 만트라 만들기 →
+          <Sparkles className="w-3 h-3" /> 내 확언 만들기 →
         </Link>
       </div>
     );

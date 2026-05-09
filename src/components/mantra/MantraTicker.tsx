@@ -32,7 +32,7 @@ export default function MantraTicker() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       className="w-full h-9 px-6 border-b border-border bg-card/40 flex items-center justify-center gap-2.5 group shrink-0"
-      aria-label="만트라 풀스크린으로 읽기"
+      aria-label="확언 풀스크린으로 읽기"
     >
       <Sparkles className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors shrink-0" />
       <span
