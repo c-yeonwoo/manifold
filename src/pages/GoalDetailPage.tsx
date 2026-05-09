@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import GoalForm from "@/components/goals/GoalForm";
+import VisionShareToggle from "@/components/community/VisionShareToggle";
 import { toast } from "sonner";
 
 function useTick() {
@@ -160,6 +161,7 @@ export default function GoalDetailPage() {
             <Button variant="ghost" size="icon" onClick={() => setEdit(true)} title="편집">
               <Pencil className="w-4 h-4" />
             </Button>
+            <VisionShareToggle goal={goal} />
             {!goal.completedAt && (
               <Button
                 variant="outline"
