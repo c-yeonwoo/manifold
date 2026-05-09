@@ -65,6 +65,8 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--body-font);
+    font-size: 15px;
+    line-height: 1.55;
     overflow-wrap: break-word;
   }
 
