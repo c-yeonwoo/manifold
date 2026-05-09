@@ -77,7 +77,7 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
       ...prev,
       {
         tempId: `tmp-${Math.random().toString(36).slice(2)}`,
-        label: `[${categoryLabel}] ${actionLabel}`,
+        label: actionLabel,
         goal_id: goalId,
         action_id: actionId,
       },
