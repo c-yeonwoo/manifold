@@ -97,13 +97,53 @@ export default function GoalDetailPage() {
         <ArrowLeft className="w-3 h-3" /> {meta.label}
       </Link>
 
+      {/* Completion banner */}
+      {goal.completedAt && (
+        <div
+          className="rounded-lg border px-5 py-3 mb-4 flex items-center justify-between gap-3"
+          style={{
+            borderColor: `hsl(${meta.hue} 50% 40%)`,
+            background: `linear-gradient(90deg, hsl(${meta.hue} 50% 18%), hsl(${meta.hue} 30% 12%))`,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Trophy className="w-5 h-5" style={{ color: `hsl(${meta.hue} 70% 70%)` }} />
+            <div>
+              <div className="text-[12px] font-medium" style={{ color: `hsl(${meta.hue} 70% 78%)` }}>
+                달성 완료 🎉
+              </div>
+              <div className="text-[11px] text-muted-foreground font-mono-num mt-0.5">
+                {goal.createdAt.slice(0, 10)} → {goal.completedAt.slice(0, 10)} ·{" "}
+                {Math.max(
+                  1,
+                  Math.round(
+                    (new Date(goal.completedAt).getTime() - new Date(goal.createdAt).getTime()) /
+                      86400000
+                  )
+                )}일
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              reopenGoal(goal.id);
+              toast.success("다시 진행 중으로 되돌렸어요");
+            }}
+          >
+            <RotateCcw className="w-3.5 h-3.5 mr-1" /> 다시 열기
+          </Button>
+        </div>
+      )}
+
       {/* Vision */}
       <div
         className="rounded-xl border p-6 mb-6 relative overflow-hidden"
         style={{ borderColor: `hsl(${meta.hue} 30% 25%)`, background: `linear-gradient(135deg, hsl(${meta.hue} 30% 10%), hsl(var(--card)))` }}
       >
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="flex-1">
             <p className="text-[10px] uppercase tracking-[0.3em]" style={{ color: accent }}>
               {meta.label} · Vision
             </p>
@@ -111,13 +151,34 @@ export default function GoalDetailPage() {
             {goal.vision && (
               <p className="mt-3 text-lg italic text-foreground/90 leading-relaxed">"{goal.vision}"</p>
             )}
-            {goal.deadline && (
-              <p className="mt-3 text-[11px] text-muted-foreground font-mono-num">목표일 {goal.deadline}</p>
+            <p className="mt-3 text-[11px] text-muted-foreground font-mono-num">
+              시작 {goal.createdAt.slice(0, 10)}
+              {goal.deadline ? ` · 목표일 ${goal.deadline}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => setEdit(true)} title="편집">
+              <Pencil className="w-4 h-4" />
+            </Button>
+            {!goal.completedAt && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`"${goal.title}"을(를) 달성 완료로 표시할까요?`)) {
+                    completeGoal(goal.id);
+                    toast.success("달성을 축하해요 🏆");
+                  }
+                }}
+                style={{
+                  borderColor: `hsl(${meta.hue} 50% 45%)`,
+                  color: `hsl(${meta.hue} 70% 75%)`,
+                }}
+              >
+                <Trophy className="w-3.5 h-3.5 mr-1" /> 달성
+              </Button>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setEdit(true)}>
-            <Pencil className="w-4 h-4" />
-          </Button>
         </div>
         {goal.imageUrl && (
           <img src={goal.imageUrl} alt="vision" className="mt-4 w-full max-h-56 object-cover rounded-lg opacity-90" />
