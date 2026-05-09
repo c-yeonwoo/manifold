@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown } from "lucide-react";
+import { Trash2, TrendingDown, Share2 } from "lucide-react";
+import { shareFinanceSummary } from "@/lib/community";
+import { toast } from "sonner";
 
 const CATEGORIES = [
   { key: "식비", color: "bg-orange-500" },
@@ -65,27 +67,54 @@ export default function FinancePage() {
     <div className="flex gap-6 animate-fade-up">
       <div className="flex-1 max-w-2xl">
         {/* Month header */}
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-foreground mb-1">
-            {now.getFullYear()}년 {now.getMonth() + 1}월
-          </h2>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-mono font-medium text-foreground">
-              {total.toLocaleString()}원
-            </span>
-            <span className="text-[13px] text-muted-foreground">
-              / {BUDGET.toLocaleString()}원
-            </span>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <h2 className="text-lg font-medium text-foreground mb-1">
+              {now.getFullYear()}년 {now.getMonth() + 1}월
+            </h2>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-mono font-medium text-foreground">
+                {total.toLocaleString()}원
+              </span>
+              <span className="text-[13px] text-muted-foreground">
+                / {BUDGET.toLocaleString()}원
+              </span>
+            </div>
+            {/* Budget bar */}
+            <div className="h-2 bg-secondary rounded-full mt-3 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  budgetPct > 80 ? "bg-destructive" : budgetPct > 50 ? "bg-primary" : "bg-success"
+                }`}
+                style={{ width: `${budgetPct}%` }}
+              />
+            </div>
           </div>
-          {/* Budget bar */}
-          <div className="h-2 bg-secondary rounded-full mt-3 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                budgetPct > 80 ? "bg-destructive" : budgetPct > 50 ? "bg-primary" : "bg-success"
-              }`}
-              style={{ width: `${budgetPct}%` }}
-            />
-          </div>
+          <button
+            onClick={async () => {
+              if (!expenses.length) {
+                toast.error("이번 달 지출이 아직 없어요");
+                return;
+              }
+              const totals: Record<string, number> = {};
+              expenses.forEach((e) => {
+                totals[e.category] = (totals[e.category] ?? 0) + e.amount;
+              });
+              try {
+                await shareFinanceSummary({
+                  year: now.getFullYear(),
+                  month: now.getMonth() + 1,
+                  totals,
+                });
+                toast.success("이번 달 지출 요약이 공유됐어요");
+              } catch (e: any) {
+                toast.error(e.message ?? "공유 실패");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" /> 이달 공유
+          </button>
         </div>
 
         {/* Input */}

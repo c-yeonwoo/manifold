@@ -47,6 +47,98 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_participants: {
+        Row: {
+          challenge_id: string
+          current_streak: number
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          current_streak?: number
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          current_streak?: number
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_participants_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          created_at: string
+          days: number
+          description: string
+          ends_at: string | null
+          id: string
+          is_public: boolean
+          owner_id: string
+          starts_at: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number
+          description?: string
+          ends_at?: string | null
+          id?: string
+          is_public?: boolean
+          owner_id: string
+          starts_at?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          description?: string
+          ends_at?: string | null
+          id?: string
+          is_public?: boolean
+          owner_id?: string
+          starts_at?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      cheers: {
+        Row: {
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goal_logs: {
         Row: {
           checked_action_ids: Json
@@ -127,26 +219,77 @@ export type Database = {
         }
         Relationships: []
       }
+      pairs: {
+        Row: {
+          a_user_id: string
+          b_user_id: string | null
+          created_at: string
+          id: string
+          invite_code: string
+          status: string
+        }
+        Insert: {
+          a_user_id: string
+          b_user_id?: string | null
+          created_at?: string
+          id?: string
+          invite_code: string
+          status?: string
+        }
+        Update: {
+          a_user_id?: string
+          b_user_id?: string | null
+          created_at?: string
+          id?: string
+          invite_code?: string
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
+          handle: string | null
           id: string
+          is_public: boolean
+          life_vision: string | null
           nickname: string | null
+          persona_age_bucket: string | null
+          persona_region: string | null
+          persona_role: string | null
+          share_life_vision: boolean
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          handle?: string | null
           id: string
+          is_public?: boolean
+          life_vision?: string | null
           nickname?: string | null
+          persona_age_bucket?: string | null
+          persona_region?: string | null
+          persona_role?: string | null
+          share_life_vision?: boolean
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          handle?: string | null
           id?: string
+          is_public?: boolean
+          life_vision?: string | null
           nickname?: string | null
+          persona_age_bucket?: string | null
+          persona_region?: string | null
+          persona_role?: string | null
+          share_life_vision?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -260,12 +403,66 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_finance_summaries: {
+        Row: {
+          id: string
+          month: number
+          note: string
+          shared_at: string
+          totals: Json
+          user_id: string
+          year: number
+        }
+        Insert: {
+          id?: string
+          month: number
+          note?: string
+          shared_at?: string
+          totals: Json
+          user_id: string
+          year: number
+        }
+        Update: {
+          id?: string
+          month?: number
+          note?: string
+          shared_at?: string
+          totals?: Json
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      shared_visions: {
+        Row: {
+          goal_id: string
+          id: string
+          shared_at: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          goal_id: string
+          id?: string
+          shared_at?: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          goal_id?: string
+          id?: string
+          shared_at?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      compute_streak: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never

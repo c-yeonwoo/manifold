@@ -6,6 +6,7 @@ const tabs = [
   { to: "/routine", label: "루틴" },
   { to: "/finance", label: "지출" },
   { to: "/mantra", label: "확언" },
+  { to: "/community", label: "커뮤니티" },
 ];
 
 export default function TopNav() {
