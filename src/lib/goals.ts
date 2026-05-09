@@ -107,7 +107,8 @@ export function saveLog(log: GoalLog) {
 
 export function listLogs(goalId: string): GoalLog[] {
   const logs: GoalLog[] = [];
-  const prefix = `goal_log_${goalId}_`;
+  const scope = CURRENT_USER_ID ?? "guest";
+  const prefix = `goal_log__${scope}__${goalId}__`;
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k && k.startsWith(prefix)) {
