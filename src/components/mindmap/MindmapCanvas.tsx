@@ -379,25 +379,34 @@ function goalPos(n: { x: number; y: number; angle: number }, gi: number, total: 
 function CategoryNode({
   node,
   delay,
+  focused,
+  dimmed,
   onClick,
 }: {
   node: CategoryMeta & { x: number; y: number; goals: Goal[] };
   delay: number;
+  focused: boolean;
+  dimmed: boolean;
   onClick: () => void;
 }) {
   return (
     <g
       onClick={onClick}
-      style={{ cursor: "pointer", animation: `fade-up 0.5s ${delay}ms both` }}
-      className="hover:opacity-90 transition-opacity"
+      style={{
+        cursor: "pointer",
+        animation: `fade-up 0.5s ${delay}ms both`,
+        opacity: dimmed ? 0.25 : 1,
+        transition: "opacity 0.3s ease",
+      }}
     >
       <circle
         cx={node.x}
         cy={node.y}
         r={42}
         fill={`hsl(${node.hue} 30% 12%)`}
-        stroke={`hsl(${node.hue} 50% 55%)`}
-        strokeWidth={1.5}
+        stroke={`hsl(${node.hue} ${focused ? 70 : 50}% ${focused ? 65 : 55}%)`}
+        strokeWidth={focused ? 2.5 : 1.5}
+        style={{ transition: "stroke 0.3s ease, stroke-width 0.3s ease" }}
       />
       <text
         x={node.x}
@@ -418,8 +427,20 @@ function CategoryNode({
         fill="hsl(var(--muted-foreground))"
         fontSize={9}
       >
-        {node.goals.length}/3
+        {node.goals.length} goals
       </text>
+      {focused && (
+        <text
+          x={node.x}
+          y={node.y + 64}
+          textAnchor="middle"
+          fill="hsl(var(--primary))"
+          fontSize={8}
+          style={{ fontFamily: "var(--mono-font)", letterSpacing: 0.5 }}
+        >
+          ↳ 한 번 더 클릭 → 상세
+        </text>
+      )}
     </g>
   );
 }
