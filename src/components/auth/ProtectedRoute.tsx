@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { isGuest } from "@/lib/guest";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -11,7 +12,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       </div>
     );
   }
-  if (!user) {
+  if (!user && !isGuest()) {
     return <Navigate to="/auth" replace state={{ from: loc.pathname }} />;
   }
   return <>{children}</>;
