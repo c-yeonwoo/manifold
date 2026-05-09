@@ -334,6 +334,7 @@ export default function MindmapCanvas() {
             delay={i * 80}
             focused={focusedKey === n.key}
             dimmed={focusedKey != null && focusedKey !== n.key}
+            isLight={isLight}
             onClick={() => handleCategoryClick(n.key, n.x, n.y)}
           />
         ))}
