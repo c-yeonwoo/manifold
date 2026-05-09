@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import GoalForm from "@/components/goals/GoalForm";
 import VisionShareToggle from "@/components/community/VisionShareToggle";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
 
 function useTick() {
   return useSyncExternalStore(
