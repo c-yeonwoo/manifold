@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { upsertGoal, uid, type Goal, type CategoryKey } from "@/lib/goals";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -20,6 +20,9 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [actions, setActions] = useState<{ id: string; label: string }[]>(
     initial?.actions ?? [{ id: uid(), label: "" }]
+  );
+  const [showAdvanced, setShowAdvanced] = useState(
+    Boolean(initial?.vision || initial?.deadline || initial?.imageUrl)
   );
 
   const submit = () => {
@@ -44,30 +47,18 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
         <DialogHeader>
           <DialogTitle>{initial ? "목표 수정" : "새 목표"}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* 핵심 필드 */}
           <div>
             <label className="text-[11px] uppercase tracking-wider text-muted-foreground">제목</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 체지방 12%" />
-          </div>
-          <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">비전 (현재형 단언문)</label>
-            <Textarea
-              value={vision}
-              onChange={(e) => setVision(e.target.value)}
-              placeholder="나는 매일 건강하게 운동하고 단단한 몸을 가지고 있다."
-              rows={2}
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 체지방 12%"
+              autoFocus
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">기한 (선택)</label>
-              <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">이미지 URL (선택)</label>
-              <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-            </div>
-          </div>
+
           <div>
             <label className="text-[11px] uppercase tracking-wider text-muted-foreground">매일의 액션</label>
             <div className="space-y-2 mt-1">
@@ -100,10 +91,51 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
               </Button>
             </div>
           </div>
+
+          {/* 추가 정보 (선택) */}
+          <div className="border-t border-border/60 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              {showAdvanced ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              추가 정보 (선택)
+            </button>
+            {showAdvanced && (
+              <div className="space-y-3 mt-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    비전 — 현재형 단언문
+                  </label>
+                  <Textarea
+                    value={vision}
+                    onChange={(e) => setVision(e.target.value)}
+                    placeholder="예: 나는 매일 건강하게 운동하고 단단한 몸을 가지고 있다."
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wider text-muted-foreground">기한</label>
+                    <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wider text-muted-foreground">이미지 URL</label>
+                    <Input
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>취소</Button>
-          <Button onClick={submit}>저장</Button>
+          <Button onClick={submit} disabled={!title.trim()}>저장</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
