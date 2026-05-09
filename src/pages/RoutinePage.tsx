@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Link2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRoutine } from "@/lib/routine-context";
 import { useAuth } from "@/lib/auth";
 import { listLogs, type RoutineTemplateItem } from "@/lib/routines";
 import RoutineEditor from "@/components/routine/RoutineEditor";
+import CategoryBadge from "@/components/routine/CategoryBadge";
 
 const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 
