@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import GoalForm from "@/components/goals/GoalForm";
 import VisionShareToggle from "@/components/community/VisionShareToggle";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
 
 function useTick() {
   return useSyncExternalStore(
@@ -31,6 +32,8 @@ function useTick() {
 
 export default function GoalDetailPage() {
   const { key, id } = useParams<{ key: string; id: string }>();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   useTick();
   const [edit, setEdit] = useState(false);
   const [note, setNote] = useState("");
@@ -90,7 +93,7 @@ export default function GoalDetailPage() {
 
   const todayDone = log?.checkedActionIds.length ?? 0;
   const todayPct = goal.actions.length ? (todayDone / goal.actions.length) * 100 : 0;
-  const accent = `hsl(${meta.hue} 60% 60%)`;
+  const accent = isLight ? `hsl(${meta.hue} 55% 40%)` : `hsl(${meta.hue} 60% 60%)`;
 
   return (
     <div className="max-w-3xl animate-fade-up">
@@ -103,14 +106,16 @@ export default function GoalDetailPage() {
         <div
           className="rounded-lg border px-5 py-3 mb-4 flex items-center justify-between gap-3"
           style={{
-            borderColor: `hsl(${meta.hue} 50% 40%)`,
-            background: `linear-gradient(90deg, hsl(${meta.hue} 50% 18%), hsl(${meta.hue} 30% 12%))`,
+            borderColor: isLight ? `hsl(${meta.hue} 50% 75%)` : `hsl(${meta.hue} 50% 40%)`,
+            background: isLight
+              ? `linear-gradient(90deg, hsl(${meta.hue} 60% 94%), hsl(${meta.hue} 50% 88%))`
+              : `linear-gradient(90deg, hsl(${meta.hue} 50% 18%), hsl(${meta.hue} 30% 12%))`,
           }}
         >
           <div className="flex items-center gap-3">
-            <Trophy className="w-5 h-5" style={{ color: `hsl(${meta.hue} 70% 70%)` }} />
+            <Trophy className="w-5 h-5" style={{ color: isLight ? `hsl(${meta.hue} 60% 40%)` : `hsl(${meta.hue} 70% 70%)` }} />
             <div>
-              <div className="text-[12px] font-medium" style={{ color: `hsl(${meta.hue} 70% 78%)` }}>
+              <div className="text-[12px] font-medium" style={{ color: isLight ? `hsl(${meta.hue} 55% 30%)` : `hsl(${meta.hue} 70% 78%)` }}>
                 달성 완료 🎉
               </div>
               <div className="text-[11px] text-muted-foreground font-mono-num mt-0.5">
@@ -141,7 +146,12 @@ export default function GoalDetailPage() {
       {/* Vision */}
       <div
         className="rounded-xl border p-6 mb-6 relative overflow-hidden"
-        style={{ borderColor: `hsl(${meta.hue} 30% 25%)`, background: `linear-gradient(135deg, hsl(${meta.hue} 30% 10%), hsl(var(--card)))` }}
+        style={{
+          borderColor: isLight ? `hsl(${meta.hue} 40% 80%)` : `hsl(${meta.hue} 30% 25%)`,
+          background: isLight
+            ? `linear-gradient(135deg, hsl(${meta.hue} 60% 95%), hsl(var(--card)))`
+            : `linear-gradient(135deg, hsl(${meta.hue} 30% 10%), hsl(var(--card)))`,
+        }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
@@ -173,8 +183,8 @@ export default function GoalDetailPage() {
                   }
                 }}
                 style={{
-                  borderColor: `hsl(${meta.hue} 50% 45%)`,
-                  color: `hsl(${meta.hue} 70% 75%)`,
+                  borderColor: isLight ? `hsl(${meta.hue} 50% 60%)` : `hsl(${meta.hue} 50% 45%)`,
+                  color: isLight ? `hsl(${meta.hue} 55% 38%)` : `hsl(${meta.hue} 70% 75%)`,
                 }}
               >
                 <Trophy className="w-3.5 h-3.5 mr-1" /> 달성
@@ -268,7 +278,7 @@ export default function GoalDetailPage() {
           {logs
             .filter((l) => l.date !== today && (l.note || l.checkedActionIds.length))
             .map((l) => (
-              <div key={l.date} className="border-l-2 pl-3" style={{ borderColor: `hsl(${meta.hue} 40% 35%)` }}>
+              <div key={l.date} className="border-l-2 pl-3" style={{ borderColor: isLight ? `hsl(${meta.hue} 40% 70%)` : `hsl(${meta.hue} 40% 35%)` }}>
                 <div className="text-[11px] font-mono-num text-muted-foreground">
                   {l.date} · {l.checkedActionIds.length}/{goal.actions.length}
                 </div>

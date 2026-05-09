@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, goalsByCategory, todayProgress, type CategoryKey, type CategoryMeta, type Goal } from "@/lib/goals";
 import { useSyncExternalStore, useRef, useState, useCallback, useEffect } from "react";
+import { useTheme } from "@/lib/theme";
 
 function useGoalsTick() {
   return useSyncExternalStore(
@@ -29,6 +30,8 @@ const MAX_SCALE = 3;
 
 export default function MindmapCanvas() {
   useGoalsTick();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const nav = useNavigate();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -331,6 +334,7 @@ export default function MindmapCanvas() {
             delay={i * 80}
             focused={focusedKey === n.key}
             dimmed={focusedKey != null && focusedKey !== n.key}
+            isLight={isLight}
             onClick={() => handleCategoryClick(n.key, n.x, n.y)}
           />
         ))}
@@ -381,14 +385,21 @@ function CategoryNode({
   delay,
   focused,
   dimmed,
+  isLight,
   onClick,
 }: {
   node: CategoryMeta & { x: number; y: number; goals: Goal[] };
   delay: number;
   focused: boolean;
   dimmed: boolean;
+  isLight: boolean;
   onClick: () => void;
 }) {
+  const fill = isLight ? `hsl(${node.hue} 55% 94%)` : `hsl(${node.hue} 30% 12%)`;
+  const stroke = isLight
+    ? `hsl(${node.hue} ${focused ? 60 : 45}% ${focused ? 50 : 60}%)`
+    : `hsl(${node.hue} ${focused ? 70 : 50}% ${focused ? 65 : 55}%)`;
+  const labelColor = isLight ? `hsl(${node.hue} 55% 32%)` : `hsl(${node.hue} 60% 75%)`;
   return (
     <g
       onClick={onClick}
@@ -403,8 +414,8 @@ function CategoryNode({
         cx={node.x}
         cy={node.y}
         r={42}
-        fill={`hsl(${node.hue} 30% 12%)`}
-        stroke={`hsl(${node.hue} ${focused ? 70 : 50}% ${focused ? 65 : 55}%)`}
+        fill={fill}
+        stroke={stroke}
         strokeWidth={focused ? 2.5 : 1.5}
         style={{ transition: "stroke 0.3s ease, stroke-width 0.3s ease" }}
       />
@@ -413,7 +424,7 @@ function CategoryNode({
         y={node.y - 2}
         textAnchor="middle"
         dominantBaseline="middle"
-        fill={`hsl(${node.hue} 60% 75%)`}
+        fill={labelColor}
         fontSize={14}
         fontWeight={500}
         style={{ fontFamily: "var(--mono-font)" }}
