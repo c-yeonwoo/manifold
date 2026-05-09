@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, Check, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
+import { publishNewVersion, tomorrowStr, type RoutineTemplateItem } from "@/lib/routines";
 import { useRoutine, notifyRoutineTemplateChanged } from "@/lib/routine-context";
-import { loadGoals, CATEGORIES } from "@/lib/goals";
+import { loadGoals, CATEGORIES, todayStr } from "@/lib/goals";
 import CategoryBadge from "./CategoryBadge";
 
 interface DraftItem {
