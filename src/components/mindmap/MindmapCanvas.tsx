@@ -280,7 +280,7 @@ export default function MindmapCanvas() {
 }
 
 function goalPos(n: { x: number; y: number; angle: number }, gi: number, total: number) {
-  const spread = total === 1 ? 0 : (gi - (total - 1) / 2) * 0.42;
+  const spread = total === 1 ? 0 : (gi - (total - 1) / 2) * 0.5;
   const a = n.angle + spread;
   return {
     x: n.x + GOAL_R * Math.cos(a),
