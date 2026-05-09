@@ -30,6 +30,8 @@ const MAX_SCALE = 3;
 
 export default function MindmapCanvas() {
   useGoalsTick();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const nav = useNavigate();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
