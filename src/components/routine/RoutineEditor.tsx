@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Link as LinkIcon, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
 import { useRoutine, notifyRoutineTemplateChanged } from "@/lib/routine-context";
 import { loadGoals, CATEGORIES } from "@/lib/goals";
+import CategoryBadge from "./CategoryBadge";
 
 interface DraftItem {
   tempId: string;
