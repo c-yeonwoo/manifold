@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown } from "lucide-react";
+import { Trash2, TrendingDown, Share2 } from "lucide-react";
+import { shareFinanceSummary } from "@/lib/community";
+import { toast } from "sonner";
 
 const CATEGORIES = [
   { key: "식비", color: "bg-orange-500" },
@@ -65,10 +67,11 @@ export default function FinancePage() {
     <div className="flex gap-6 animate-fade-up">
       <div className="flex-1 max-w-2xl">
         {/* Month header */}
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-foreground mb-1">
-            {now.getFullYear()}년 {now.getMonth() + 1}월
-          </h2>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-medium text-foreground mb-1">
+              {now.getFullYear()}년 {now.getMonth() + 1}월
+            </h2>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-mono font-medium text-foreground">
               {total.toLocaleString()}원
