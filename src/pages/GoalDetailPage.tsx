@@ -183,8 +183,8 @@ export default function GoalDetailPage() {
                   }
                 }}
                 style={{
-                  borderColor: `hsl(${meta.hue} 50% 45%)`,
-                  color: `hsl(${meta.hue} 70% 75%)`,
+                  borderColor: isLight ? `hsl(${meta.hue} 50% 60%)` : `hsl(${meta.hue} 50% 45%)`,
+                  color: isLight ? `hsl(${meta.hue} 55% 38%)` : `hsl(${meta.hue} 70% 75%)`,
                 }}
               >
                 <Trophy className="w-3.5 h-3.5 mr-1" /> 달성
