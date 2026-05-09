@@ -153,12 +153,12 @@ export default function RoutinePage() {
                   )}
                 </span>
                 <span
-                  className={`text-[13px] leading-snug inline-flex items-center gap-1 ${
+                  className={`text-[14px] leading-snug inline-flex items-center gap-1.5 ${
                     done ? "text-muted-foreground line-through" : "text-foreground"
                   }`}
                 >
-                  {item.goal_id && <Link2 className="w-3 h-3 text-primary/70 shrink-0" />}
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.goal_id && <CategoryBadge goalId={item.goal_id} size="sm" />}
                 </span>
               </button>
             );
