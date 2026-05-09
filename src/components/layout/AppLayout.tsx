@@ -2,6 +2,7 @@ import { Outlet, Link } from "react-router-dom";
 import TopNav from "./TopNav";
 import Sidebar from "./Sidebar";
 import { MantraProvider } from "@/lib/mantra-context";
+import { RoutineProvider } from "@/lib/routine-context";
 import MantraReader from "@/components/mantra/MantraReader";
 import MantraTicker from "@/components/mantra/MantraTicker";
 import { useAuth } from "@/lib/auth";
