@@ -329,7 +329,9 @@ export default function MindmapCanvas() {
             key={n.key}
             node={n}
             delay={i * 80}
-            onClick={() => guardedNav(`/category/${n.key}`)}
+            focused={focusedKey === n.key}
+            dimmed={focusedKey != null && focusedKey !== n.key}
+            onClick={() => handleCategoryClick(n.key, n.x, n.y)}
           />
         ))}
 
@@ -338,6 +340,7 @@ export default function MindmapCanvas() {
           n.goals.map((g, gi) => {
             const gp = goalPos(n, gi, n.goals.length);
             const p = todayProgress(g);
+            const dimmed = focusedKey != null && focusedKey !== n.key;
             return (
               <GoalNode
                 key={g.id}
@@ -347,6 +350,7 @@ export default function MindmapCanvas() {
                 goal={g}
                 done={p.done}
                 total={p.total}
+                dimmed={dimmed}
                 onClick={() => guardedNav(`/category/${n.key}/goal/${g.id}`)}
               />
             );
@@ -355,7 +359,9 @@ export default function MindmapCanvas() {
         </g>
       </svg>
       <p className="text-center text-[10px] text-muted-foreground mt-1">
-        드래그로 이동 · 휠 또는 +/− 버튼으로 확대/축소
+        {focusedKey
+          ? "한 번 더 클릭하면 상세 페이지로 · 빈 공간 클릭 시 닫힘"
+          : "카테고리 클릭 → 포커스 · 한 번 더 클릭 → 상세"}
       </p>
     </div>
   );
