@@ -151,6 +151,115 @@ export type Database = {
         }
         Relationships: []
       }
+      routine_logs: {
+        Row: {
+          checked_item_ids: Json
+          created_at: string
+          id: string
+          log_date: string
+          template_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked_item_ids?: Json
+          created_at?: string
+          id?: string
+          log_date: string
+          template_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked_item_ids?: Json
+          created_at?: string
+          id?: string
+          log_date?: string
+          template_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "routine_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routine_template_items: {
+        Row: {
+          action_id: string | null
+          created_at: string
+          goal_id: string | null
+          id: string
+          label: string
+          phase: number
+          position: number
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          action_id?: string | null
+          created_at?: string
+          goal_id?: string | null
+          id?: string
+          label: string
+          phase?: number
+          position?: number
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          action_id?: string | null
+          created_at?: string
+          goal_id?: string | null
+          id?: string
+          label?: string
+          phase?: number
+          position?: number
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "routine_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routine_templates: {
+        Row: {
+          created_at: string
+          effective_from: string
+          id: string
+          is_active: boolean
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
