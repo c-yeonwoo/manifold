@@ -13,6 +13,7 @@ import RoutinePage from "@/pages/RoutinePage";
 import FinancePage from "@/pages/FinancePage";
 import MantraPage from "@/pages/MantraPage";
 import AuthPage from "@/pages/AuthPage";
+import ReviewPage from "@/pages/ReviewPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/routine" element={<RoutinePage />} />
               <Route path="/finance" element={<FinancePage />} />
               <Route path="/mantra" element={<MantraPage />} />
+              <Route path="/review" element={<ReviewPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

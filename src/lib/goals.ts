@@ -153,3 +153,30 @@ export function todayProgress(goal: Goal): { done: number; total: number } {
 export function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+// ---- Life Vision (one-line top vision) ----
+const lifeVisionKey = () =>
+  CURRENT_USER_ID ? `life_vision__${CURRENT_USER_ID}` : `life_vision__guest`;
+
+export function loadLifeVision(): string {
+  return loadJSON<string>(lifeVisionKey(), "");
+}
+export function saveLifeVision(text: string) {
+  saveJSON(lifeVisionKey(), text);
+  window.dispatchEvent(new Event("goals-updated"));
+}
+
+// ---- Quarter helpers ----
+export function quarterOf(d: Date): { year: number; q: 1 | 2 | 3 | 4 } {
+  return { year: d.getFullYear(), q: (Math.floor(d.getMonth() / 3) + 1) as 1 | 2 | 3 | 4 };
+}
+export function quarterRange(year: number, q: 1 | 2 | 3 | 4): { start: Date; end: Date } {
+  const startMonth = (q - 1) * 3;
+  return {
+    start: new Date(year, startMonth, 1),
+    end: new Date(year, startMonth + 3, 1),
+  };
+}
+export function quarterLabel(year: number, q: number) {
+  return `${year} Q${q}`;
+}

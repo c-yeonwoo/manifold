@@ -71,7 +71,20 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
           </div>
 
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">매일의 액션</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">매일의 액션</label>
+              <span
+                className={`text-[10px] ${
+                  actions.filter((a) => a.label.trim()).length > 3
+                    ? "text-amber-500/80"
+                    : "text-muted-foreground/70"
+                }`}
+              >
+                {actions.filter((a) => a.label.trim()).length > 3
+                  ? "권장 3개 이내 · 너무 많으면 흐트러져요"
+                  : "권장: 매일 할 작은 액션 3개"}
+              </span>
+            </div>
             <div className="space-y-2 mt-1">
               {actions.map((a, i) => (
                 <div key={a.id} className="flex gap-2">
