@@ -34,6 +34,7 @@ export interface Goal {
   imageUrl?: string;
   deadline?: string;
   createdAt: string;
+  completedAt?: string; // ISO timestamp when the goal was achieved
   actions: ActionItem[];
 }
 
