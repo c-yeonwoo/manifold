@@ -4,15 +4,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppLayout from "@/components/layout/AppLayout";
+import MindmapHome from "@/pages/MindmapHome";
+import CategoryPage from "@/pages/CategoryPage";
+import GoalDetailPage from "@/pages/GoalDetailPage";
 import RoutinePage from "@/pages/RoutinePage";
-import EconomyPage from "@/pages/EconomyPage";
-import JapanesePage from "@/pages/JapanesePage";
-import EnglishPage from "@/pages/EnglishPage";
-import HealthPage from "@/pages/HealthPage";
 import FinancePage from "@/pages/FinancePage";
-import PropertyPage from "@/pages/PropertyPage";
-import ReadingPage from "@/pages/ReadingPage";
-import PortfolioPage from "@/pages/PortfolioPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,15 +21,11 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<RoutinePage />} />
-            <Route path="/economy" element={<EconomyPage />} />
-            <Route path="/japanese" element={<JapanesePage />} />
-            <Route path="/english" element={<EnglishPage />} />
-            <Route path="/health" element={<HealthPage />} />
+            <Route path="/" element={<MindmapHome />} />
+            <Route path="/category/:key" element={<CategoryPage />} />
+            <Route path="/category/:key/goal/:id" element={<GoalDetailPage />} />
+            <Route path="/routine" element={<RoutinePage />} />
             <Route path="/finance" element={<FinancePage />} />
-            <Route path="/property" element={<PropertyPage />} />
-            <Route path="/reading" element={<ReadingPage />} />
-            <Route path="/portfolio" element={<PortfolioPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
