@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+import { Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import { loadJSON, saveJSON, getTodayKey, DEFAULT_ROUTINES, QUOTES, type RoutineItem } from "@/lib/store";
+import { useMantra } from "@/lib/mantra-context";
 
 const PHASE_LABELS: Record<number, { label: string; time: string }> = {
   1: { label: "P1 Mind & Clean Up", time: "06:00–10:00" },
@@ -90,12 +93,45 @@ export default function Sidebar() {
           );
         })}
       </div>
-      {/* Daily quote */}
-      <div className="p-4 border-t border-border">
-        <p className="text-[11px] text-muted-foreground italic leading-relaxed">
-          "{quote}"
-        </p>
-      </div>
+      {/* Daily affirmation / quote */}
+      <DailyAffirmation fallbackQuote={quote} />
     </aside>
+  );
+}
+
+function DailyAffirmation({ fallbackQuote }: { fallbackQuote: string }) {
+  const { affirmations, openReader } = useMantra();
+  const todays = useMemo(() => {
+    if (affirmations.length === 0) return null;
+    const idx = new Date().getDate() % affirmations.length;
+    return { item: affirmations[idx], index: idx };
+  }, [affirmations]);
+
+  if (!todays) {
+    return (
+      <div className="p-4 border-t border-border">
+        <p className="text-[11px] text-muted-foreground italic leading-relaxed mb-2">
+          "{fallbackQuote}"
+        </p>
+        <Link
+          to="/mantra"
+          className="text-[10px] text-primary/70 hover:text-primary inline-flex items-center gap-1"
+        >
+          <Sparkles className="w-3 h-3" /> 내 만트라 만들기 →
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => openReader(todays.index)}
+      className="p-4 border-t border-border text-left hover:bg-card/40 transition-colors group"
+    >
+      <Sparkles className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors mb-1.5" />
+      <p className="text-[11px] text-sidebar-foreground leading-relaxed">
+        {todays.item.text}
+      </p>
+    </button>
   );
 }
