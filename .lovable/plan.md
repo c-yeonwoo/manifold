@@ -1,113 +1,102 @@
-# 확언(Mantra) 기능 추가 플랜
+# 데일리 루틴 커스터마이징 + Vision Board 연동
 
-IAM의 시그니처 기능. 사용자가 자기 확언 N개를 리스트로 키우고, 평소엔 은은하게 노출되다가 필요할 때 풀스크린으로 꺼내 소리내어 읽을 수 있게.
+## 목표
+- 고정된 루틴(`DEFAULT_ROUTINES`)을 사용자가 직접 편집 가능한 **템플릿**으로 전환
+- 템플릿은 **버전(version)** 단위로 보관 — 수정하면 새 버전이 생성되고, 그 시점부터의 일자에 적용
+- 루틴 항목은 두 종류:
+  1. **커스텀 항목** (사용자가 직접 입력: 찬물샤워, 단백질 기록 등)
+  2. **Vision Action 링크** (Goal의 action을 끌어옴 → 루틴 체크가 곧 goal_log 체크로 반영)
+- 데일리 루틴에서 체크 시:
+  - 커스텀 항목 → 기존처럼 일자별 routine 상태 저장
+  - Vision Action 링크 → 해당 goal의 오늘 `goal_log.checked_action_ids`에 자동 반영
+- 카테고리(P1/P2/P3) 유지
 
-## 1. 데이터 (Lovable Cloud)
+## DB 스키마
 
-`affirmations` 테이블 신설:
-- `text` (필수)
-- `position` (정수, 정렬용)
-- `is_favorite` (boolean, 즐겨찾기 → 롤링/사이드바 우선 노출)
-- `category` (nullable text, 6개 카테고리 중 선택)
-- 표준 필드 (id, user_id, created_at, updated_at)
+### `routine_templates`
+- `id uuid pk`
+- `user_id uuid`
+- `version int` — 사용자 내 증가 (1, 2, 3…)
+- `is_active bool` — 현재 활성 템플릿 단 1개
+- `effective_from date` — 이 버전이 적용되기 시작하는 날짜
+- `created_at`
 
-RLS: 본인 데이터만 CRUD. `goals`와 동일 패턴.
+### `routine_template_items`
+- `id uuid pk`
+- `template_id uuid → routine_templates.id`
+- `user_id uuid`
+- `label text`
+- `phase int (1|2|3)`
+- `position int`
+- `goal_id uuid nullable` — Vision Action 링크 시 source goal
+- `action_id text nullable` — goal.actions[].id
+- `created_at`
 
-## 2. GNB 4번째 탭
+### `routine_logs` (신규, 일자별 체크 상태)
+- `id uuid pk`
+- `user_id uuid`
+- `log_date date`
+- `template_id uuid` — 그 날짜에 적용된 템플릿
+- `checked_item_ids jsonb` — `routine_template_items.id` 배열
+- unique(user_id, log_date)
 
-`TopNav.tsx`에 ✨ 아이콘 + "만트라" 추가 → `/mantra` 라우트.
-순서: 마인드맵 / 루틴 / 지출 / **만트라**.
+RLS는 모두 `auth.uid() = user_id`.
 
-## 3. 만트라 관리 페이지 `/mantra`
+## 동작
 
-```text
-┌─────────────────────────────────────────┐
-│  내 만트라                  ▶ 풀스크린 읽기 │
-│  소리내어 읽고, 매일 새겨두는 한 줄들       │
-├─────────────────────────────────────────┤
-│  + 새 확언 추가...              [Cmd+↵]  │
-├─────────────────────────────────────────┤
-│  ⋮⋮ 1. 나는 매일 한 단계씩 성장한다 ⭐ #성장│
-│  ⋮⋮ 2. 나는 지금 이 순간에 감사한다  ⭐    │
-│  ⋮⋮ 3. ...                              │
-└─────────────────────────────────────────┘
-```
+### 템플릿 버전 관리
+- 첫 진입 시 활성 템플릿 없으면 → `DEFAULT_ROUTINES` 기반 v1 자동 시드
+- 사용자가 데일리 루틴 페이지에서 "루틴 편집" → 모달/인라인 편집 → 저장 시:
+  - 기존 활성 템플릿 `is_active=false`
+  - 신규 row insert: `version+1`, `is_active=true`, `effective_from = today`
+- 일자별 루틴은 `effective_from <= log_date <= 다음 버전 effective_from` 인 템플릿 사용 (조회 시 가장 최근 `effective_from <= log_date` 템플릿)
 
-기능:
-- 한 줄 인풋 + Cmd+Enter로 추가
-- 인라인 편집(클릭 시 수정), 삭제(휴지통)
-- ⭐ 즐겨찾기 토글
-- 드래그로 순서 변경(`position` 업데이트)
-- 카테고리 칩(선택, 비워둘 수 있음)
-- 우측 상단 "▶ 풀스크린 읽기" 버튼 → 풀스크린 리더 진입
+### Vision Action 추가
+- 편집 모달 내 "Vision Board에서 가져오기" 버튼
+- 모든 goals의 actions 리스트에서 다중선택 → phase 지정 후 추가
+- item에 `goal_id` + `action_id` 저장. 라벨 `[Health] 단백질 30g 섭취` 형태로 표시
 
-## 4. 풀스크린 만트라 리더
+### 체크 동기화
+- Sidebar/RoutinePage에서 체크 토글:
+  1. `routine_logs` upsert (item.id 추가/제거)
+  2. item에 `goal_id`/`action_id`가 있으면 → `goal_logs` upsert: 해당 `action_id`를 `checked_action_ids`에 추가/제거
+- 역방향 (goal page에서 체크) 동기화는 이번 범위에서 **제외** (단방향: 루틴 → goal)
 
-전역 모달(어디서든 단축키 `M` 또는 진입점에서 호출).
+## UI 변경
 
-```text
-┌──────────────────────────────────────┐
-│                                  ✕   │
-│                                       │
-│                                       │
-│      나는 매일 한 단계씩                │
-│      성장한다.                         │
-│                                       │
-│                                       │
-│              3 / 10                   │
-│      ◀  ●○○  스페이스: 다음  ▶        │
-│      [ 자동재생 ]  [ 소리내어 읽음 ✓ ] │
-└──────────────────────────────────────┘
-```
+### `RoutinePage.tsx`
+- 상단에 **"오늘의 루틴"** 섹션 추가 (체크리스트, P1/P2/P3 분리, 현재 사이드바와 동일한 토글 UI)
+- 우상단 `루틴 편집` 버튼 → 모달
+- 기존 연간 히트맵은 하단 유지 (data source를 `routine_logs`로 전환)
 
-- 전체 화면 검정 배경, 큰 디스플레이 타이포(세리프 강조)
-- 좌/우 화살표 또는 스페이스로 한 장씩
-- 자동재생(5초 간격) 토글
-- "소리내어 읽음" 체크 시 그 회기는 완료(추후 streak로 확장 여지)
-- ESC로 닫기
+### `RoutineEditor` (신규 모달)
+- phase별 그룹
+- 각 항목: 라벨 입력 + 삭제 + 드래그 순서
+- "+ 항목 추가" / "+ Vision에서 가져오기"
+- 저장 시 새 버전 생성 토스트
 
-## 5. 상단 글로벌 롤링 바
+### `Sidebar.tsx`
+- localStorage 기반 → `useRoutine()` 훅으로 전환 (오늘 템플릿 + 오늘 로그)
+- 체크 토글 시 위 동기화 로직 호출
 
-App 헤더 아래 1줄 띠:
-- 8초마다 fade로 다음 확언으로 회전
-- 즐겨찾기(⭐) 우선, 없으면 전체에서
-- 호버 시 정지, 클릭 시 풀스크린 리더 진입
-- 인증된 페이지에서만, 확언이 1개 이상일 때만 노출
-- 사용자 설정으로 끄기 가능(프로필 메뉴)
+## 신규/수정 파일
 
-## 6. 사이드바 데일리 쿼트 자리
+**신규**
+- `supabase/migrations/<ts>_routine_templates.sql`
+- `src/lib/routines.ts` — 데이터 fetch/upsert/sync 헬퍼 + React 훅 `useTodayRoutine()`
+- `src/components/routine/RoutineEditor.tsx` — 편집 모달
+- `src/components/routine/VisionActionPicker.tsx` — goals의 action 다중선택
 
-기존 일반 명언 → **본인 확언 1개 랜덤** 표시.
-- 확언이 0개면 기본 명언 fallback + "내 만트라 만들기 →" 링크
-- 작은 ✨ 아이콘 → 풀스크린 리더
+**수정**
+- `src/pages/RoutinePage.tsx` — 오늘 체크리스트 + 편집 진입점, 히트맵 데이터 소스 교체
+- `src/components/layout/Sidebar.tsx` — 새 훅 사용
+- `src/integrations/supabase/types.ts` — 마이그레이션 후 자동 갱신
 
-## 7. 빈 상태
+## 마이그레이션 → 기존 데이터
+- 기존 localStorage `routine_*` 데이터는 마이그레이션 없이 그대로 두고, 신규 시스템부터 적용 (히트맵은 신규 시스템 데이터로 점진적으로 채워짐)
+- 첫 로드 시 `DEFAULT_ROUTINES` 기반 v1 자동 시드되므로 기존 사용 흐름 유지
 
-`/mantra`에 확언 0개일 때:
-- 안내 문구 + 예시 5~6개를 인풋 옆에 한 번 클릭으로 추가할 수 있는 칩으로 제시
-- 사용자가 보낸 10개 중 일부를 시드 예시로 사용
-
-## 기술 메모
-
-- 테이블: `affirmations` + RLS 4종(select/insert/update/delete own)
-- 인덱스: `(user_id, position)` 정렬용
-- 라우팅: `/mantra` 추가, ProtectedRoute 적용
-- 새 컴포넌트:
-  - `pages/MantraPage.tsx`
-  - `components/mantra/MantraList.tsx`
-  - `components/mantra/MantraReader.tsx` (풀스크린 모달, 전역 마운트)
-  - `components/mantra/MantraTicker.tsx` (상단 롤링 바)
-  - `lib/mantra-context.tsx` (리더 열기 전역 함수, 확언 캐시)
-- `TopNav.tsx`에 4번째 탭 추가
-- 사이드바(`AppSidebar` 또는 데일리 쿼트 컴포넌트)의 명언 영역 교체
-- 단축키: 전역 `M` 키로 리더 열기
-
-## 범위 외 (다음 단계)
-
-- 낭독 streak 통계 / 배지
-- 카드 이미지 다운로드(공유)
-- AI 확언 생성 / 다듬기
-- 모닝 트리거 토스트
-- 루틴과의 자동 연결
-
-승인하시면 마이그레이션부터 시작할게요.
+## 비범위
+- goal → routine 역방향 자동 동기화
+- 템플릿 히스토리 뷰어/롤백 UI (DB에는 남지만 UI는 추후)
+- 게스트 모드(비로그인)는 v1 템플릿 읽기 전용
