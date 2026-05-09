@@ -108,8 +108,80 @@ export default function MindmapCanvas() {
     nav(to);
   };
 
-  const reset = () => setView({ x: 0, y: 0, scale: 1 });
+  // ----- Two-stage focus: 1st click zooms+centers, 2nd click navigates -----
+  const [focusedKey, setFocusedKey] = useState<CategoryKey | null>(null);
+  const animRef = useRef<number | null>(null);
+
+  const cancelAnim = () => {
+    if (animRef.current != null) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+  };
+
+  const animateView = (target: { x: number; y: number; scale: number }) => {
+    cancelAnim();
+    const start = { ...view };
+    const t0 = performance.now();
+    const dur = 380;
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      setView({
+        x: start.x + (target.x - start.x) * e,
+        y: start.y + (target.y - start.y) * e,
+        scale: start.scale + (target.scale - start.scale) * e,
+      });
+      if (t < 1) animRef.current = requestAnimationFrame(step);
+      else animRef.current = null;
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  const focusOnCategory = (nx: number, ny: number) => {
+    const targetScale = 1.8;
+    animateView({
+      x: CX - nx * targetScale,
+      y: CY - ny * targetScale,
+      scale: targetScale,
+    });
+  };
+
+  const handleCategoryClick = (key: CategoryKey, nx: number, ny: number) => {
+    if (panState.current.moved) return;
+    if (focusedKey === key) {
+      nav(`/category/${key}`);
+      return;
+    }
+    setFocusedKey(key);
+    focusOnCategory(nx, ny);
+  };
+
+  const clearFocus = () => {
+    if (focusedKey == null) return;
+    setFocusedKey(null);
+    animateView({ x: 0, y: 0, scale: 1 });
+  };
+
+  // cancel running anim on user pan / wheel
+  useEffect(() => {
+    const sv = svgRef.current;
+    if (!sv) return;
+    const stop = () => cancelAnim();
+    sv.addEventListener("pointerdown", stop);
+    sv.addEventListener("wheel", stop);
+    return () => {
+      sv.removeEventListener("pointerdown", stop);
+      sv.removeEventListener("wheel", stop);
+    };
+  }, []);
+
+  const reset = () => {
+    setFocusedKey(null);
+    animateView({ x: 0, y: 0, scale: 1 });
+  };
   const zoomBy = (factor: number) => {
+    cancelAnim();
     setView((v) => {
       const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
       const k = newScale / v.scale;
