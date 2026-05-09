@@ -128,15 +128,10 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     });
   };
 
-  const save = async () => {
-    if (!user) {
-      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
-      return;
-    }
-    if (!template) {
-      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const performSave = async (mode: "today" | "tomorrow" | "reset") => {
+    if (!user || !template) return;
     const cleaned = drafts.filter((d) => d.label.trim().length > 0);
     if (cleaned.length === 0) {
       toast.error("최소 1개 이상의 항목이 필요합니다.");
@@ -151,10 +146,23 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
         goal_id: d.goal_id,
         action_id: d.action_id,
       }));
-      await publishNewVersion(user.id, template.version, newItems);
-      toast.success(`루틴 v${template.version + 1} 적용됨`);
+      const effectiveFrom = mode === "tomorrow" ? tomorrowStr() : todayStr();
+      const resetTodayLogForTemplateId = mode === "reset" ? template.id : undefined;
+      await publishNewVersion(user.id, template.version, newItems, {
+        effectiveFrom,
+        resetTodayLogForTemplateId,
+      });
+      const versionLabel = `v${template.version + 1}`;
+      const msg =
+        mode === "tomorrow"
+          ? `루틴 ${versionLabel} 내일부터 적용됩니다`
+          : mode === "reset"
+            ? `오늘 체크를 초기화하고 ${versionLabel}을 적용했어요`
+            : `루틴 ${versionLabel} 적용됨`;
+      toast.success(msg);
       notifyRoutineTemplateChanged();
       await refresh();
+      setConfirmOpen(false);
       onOpenChange(false);
     } catch (err: any) {
       console.error("[routine] save failed", err);
@@ -162,6 +170,27 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const save = async () => {
+    if (!user) {
+      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
+      return;
+    }
+    if (!template) {
+      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    if (drafts.filter((d) => d.label.trim().length > 0).length === 0) {
+      toast.error("최소 1개 이상의 항목이 필요합니다.");
+      return;
+    }
+    // If today already has checked items, prompt the user.
+    if (checkedIds.length > 0) {
+      setConfirmOpen(true);
+      return;
+    }
+    await performSave("today");
   };
 
   return (
