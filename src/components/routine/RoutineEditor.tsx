@@ -35,7 +35,7 @@ interface Props {
 
 export default function RoutineEditor({ open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { template, items, refresh } = useRoutine();
+  const { template, items, checkedIds, refresh } = useRoutine();
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [saving, setSaving] = useState(false);
 
