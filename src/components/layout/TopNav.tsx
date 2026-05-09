@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
+import ProfileMenu from "./ProfileMenu";
 
 const tabs = [
   { to: "/", label: "마인드맵" },
@@ -11,11 +12,14 @@ export default function TopNav() {
   return (
     <nav className="h-12 border-b border-border bg-card flex items-center px-6 gap-1 shrink-0">
       <span className="font-mono text-primary font-medium tracking-tight mr-6 text-sm">
-        DAILY OS
+        IAM
       </span>
-      <div className="flex gap-1">
+      <div className="flex gap-1 flex-1">
         {tabs.map((t) => {
-          const active = t.to === "/" ? pathname === "/" || pathname.startsWith("/category") : pathname.startsWith(t.to);
+          const active =
+            t.to === "/"
+              ? pathname === "/" || pathname.startsWith("/category")
+              : pathname.startsWith(t.to);
           return (
             <NavLink
               key={t.to}
@@ -31,6 +35,7 @@ export default function TopNav() {
           );
         })}
       </div>
+      <ProfileMenu />
     </nav>
   );
 }
