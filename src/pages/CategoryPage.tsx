@@ -30,7 +30,7 @@ export default function CategoryPage() {
   return (
     <div className="max-w-3xl animate-fade-up">
       <Link to="/" className="text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4">
-        <ArrowLeft className="w-3 h-3" /> 마인드맵으로
+        <ArrowLeft className="w-3 h-3" /> 비전 보드로
       </Link>
 
       <div className="mb-6">
