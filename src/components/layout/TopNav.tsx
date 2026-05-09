@@ -5,8 +5,8 @@ import ThemeToggle from "./ThemeToggle";
 const tabs = [
   { to: "/", label: "비전 보드" },
   { to: "/routine", label: "루틴" },
-  { to: "/finance", label: "지출" },
   { to: "/mantra", label: "확언" },
+  { to: "/finance", label: "지출" },
   { to: "/community", label: "커뮤니티" },
 ];
 
