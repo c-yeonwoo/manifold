@@ -354,9 +354,18 @@ function GoalNode({
   onClick: () => void;
 }) {
   const pct = total ? done / total : 0;
-  const r = 22;
+  const r = 30;
   const c = 2 * Math.PI * r;
-  const label = goal.title.length > 8 ? goal.title.slice(0, 8) + "…" : goal.title;
+  // wrap title into up to 2 lines (~6 chars each)
+  const max = 12;
+  const t = goal.title.length > max ? goal.title.slice(0, max) + "…" : goal.title;
+  const lines: string[] = [];
+  if (t.length <= 6) {
+    lines.push(t);
+  } else {
+    lines.push(t.slice(0, 6));
+    lines.push(t.slice(6));
+  }
   return (
     <g onClick={onClick} style={{ cursor: "pointer" }} className="hover:opacity-90">
       <circle cx={cx} cy={cy} r={r} fill="hsl(var(--card))" stroke={`hsl(${hue} 40% 30%)`} strokeWidth={1} />
@@ -371,16 +380,32 @@ function GoalNode({
         transform={`rotate(-90 ${cx} ${cy})`}
         strokeLinecap="round"
       />
+      {/* title inside */}
       <text
-        x={cx}
-        y={cy + 38}
         textAnchor="middle"
         fill="hsl(var(--foreground))"
-        fontSize={11}
+        fontSize={10}
+        fontWeight={500}
       >
-        {label}
+        {lines.map((ln, i) => (
+          <tspan
+            key={i}
+            x={cx}
+            y={cy + (lines.length === 1 ? 3 : i === 0 ? -3 : 9)}
+          >
+            {ln}
+          </tspan>
+        ))}
       </text>
-      <text x={cx} y={cy + 3} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="hsl(var(--muted-foreground))" style={{ fontFamily: "var(--mono-font)" }}>
+      {/* count subtitle below node */}
+      <text
+        x={cx}
+        y={cy + r + 12}
+        textAnchor="middle"
+        fontSize={9}
+        fill="hsl(var(--muted-foreground))"
+        style={{ fontFamily: "var(--mono-font)" }}
+      >
         {done}/{total}
       </text>
     </g>
