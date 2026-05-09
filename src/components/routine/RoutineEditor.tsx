@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Plus, Trash2, Check, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
@@ -102,6 +102,22 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     });
   };
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const reorder = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    setDrafts((prev) => {
+      const from = prev.findIndex((d) => d.tempId === sourceId);
+      const to = prev.findIndex((d) => d.tempId === targetId);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   const save = async () => {
     if (!user) {
       toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
@@ -166,7 +182,44 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
                   </p>
                 )}
                 {drafts.map((d, idx) => (
-                  <div key={d.tempId} className="flex items-center gap-1.5">
+                  <div
+                    key={d.tempId}
+                    draggable
+                    onDragStart={(e) => {
+                      setDragId(d.tempId);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverId !== d.tempId) setDragOverId(d.tempId);
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverId === d.tempId) setDragOverId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId) reorder(dragId, d.tempId);
+                      setDragId(null);
+                      setDragOverId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setDragOverId(null);
+                    }}
+                    className={`flex items-center gap-1.5 rounded-md transition-colors ${
+                      dragOverId === d.tempId && dragId !== d.tempId
+                        ? "bg-primary/10 ring-1 ring-primary/40"
+                        : ""
+                    } ${dragId === d.tempId ? "opacity-50" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="p-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                      aria-label="순서 변경"
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </button>
                     <span className="w-5 text-[11px] font-mono text-muted-foreground text-right">
                       {idx + 1}
                     </span>
@@ -174,26 +227,12 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
                       value={d.label}
                       onChange={(e) => update(d.tempId, { label: e.target.value })}
                       placeholder="항목 이름"
-                      className="text-[14px] h-9"
+                      className="flex-1 min-w-0 text-[14px] h-9"
                     />
                     {d.goal_id && <CategoryBadge goalId={d.goal_id} size="sm" />}
                     <button
-                      onClick={() => move(d.tempId, -1)}
-                      disabled={idx === 0}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => move(d.tempId, 1)}
-                      disabled={idx === drafts.length - 1}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                    <button
                       onClick={() => remove(d.tempId)}
-                      className="p-1.5 text-muted-foreground hover:text-destructive"
+                      className="p-1.5 text-muted-foreground hover:text-destructive shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
