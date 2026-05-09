@@ -106,14 +106,16 @@ export default function GoalDetailPage() {
         <div
           className="rounded-lg border px-5 py-3 mb-4 flex items-center justify-between gap-3"
           style={{
-            borderColor: `hsl(${meta.hue} 50% 40%)`,
-            background: `linear-gradient(90deg, hsl(${meta.hue} 50% 18%), hsl(${meta.hue} 30% 12%))`,
+            borderColor: isLight ? `hsl(${meta.hue} 50% 75%)` : `hsl(${meta.hue} 50% 40%)`,
+            background: isLight
+              ? `linear-gradient(90deg, hsl(${meta.hue} 60% 94%), hsl(${meta.hue} 50% 88%))`
+              : `linear-gradient(90deg, hsl(${meta.hue} 50% 18%), hsl(${meta.hue} 30% 12%))`,
           }}
         >
           <div className="flex items-center gap-3">
-            <Trophy className="w-5 h-5" style={{ color: `hsl(${meta.hue} 70% 70%)` }} />
+            <Trophy className="w-5 h-5" style={{ color: isLight ? `hsl(${meta.hue} 60% 40%)` : `hsl(${meta.hue} 70% 70%)` }} />
             <div>
-              <div className="text-[12px] font-medium" style={{ color: `hsl(${meta.hue} 70% 78%)` }}>
+              <div className="text-[12px] font-medium" style={{ color: isLight ? `hsl(${meta.hue} 55% 30%)` : `hsl(${meta.hue} 70% 78%)` }}>
                 달성 완료 🎉
               </div>
               <div className="text-[11px] text-muted-foreground font-mono-num mt-0.5">
