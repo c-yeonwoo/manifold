@@ -11,6 +11,7 @@ import CategoryPage from "@/pages/CategoryPage";
 import GoalDetailPage from "@/pages/GoalDetailPage";
 import RoutinePage from "@/pages/RoutinePage";
 import FinancePage from "@/pages/FinancePage";
+import MantraPage from "@/pages/MantraPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/category/:key/goal/:id" element={<GoalDetailPage />} />
               <Route path="/routine" element={<RoutinePage />} />
               <Route path="/finance" element={<FinancePage />} />
+              <Route path="/mantra" element={<MantraPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

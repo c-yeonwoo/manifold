@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      affirmations: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          is_favorite: boolean
+          position: number
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          position?: number
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          position?: number
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goal_logs: {
         Row: {
           checked_action_ids: Json
