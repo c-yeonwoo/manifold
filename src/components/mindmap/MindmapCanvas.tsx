@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, goalsByCategory, todayProgress, type CategoryKey, type CategoryMeta, type Goal } from "@/lib/goals";
 import { useSyncExternalStore, useRef, useState, useCallback, useEffect } from "react";
+import { useTheme } from "@/lib/theme";
 
 function useGoalsTick() {
   return useSyncExternalStore(
