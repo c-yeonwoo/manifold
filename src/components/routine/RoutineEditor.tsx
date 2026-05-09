@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, Check, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { publishNewVersion, type RoutineTemplateItem } from "@/lib/routines";
+import { publishNewVersion, tomorrowStr, type RoutineTemplateItem } from "@/lib/routines";
 import { useRoutine, notifyRoutineTemplateChanged } from "@/lib/routine-context";
-import { loadGoals, CATEGORIES } from "@/lib/goals";
+import { loadGoals, CATEGORIES, todayStr } from "@/lib/goals";
 import CategoryBadge from "./CategoryBadge";
 
 interface DraftItem {
@@ -25,7 +35,7 @@ interface Props {
 
 export default function RoutineEditor({ open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { template, items, refresh } = useRoutine();
+  const { template, items, checkedIds, refresh } = useRoutine();
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -118,15 +128,10 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     });
   };
 
-  const save = async () => {
-    if (!user) {
-      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
-      return;
-    }
-    if (!template) {
-      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const performSave = async (mode: "today" | "tomorrow" | "reset") => {
+    if (!user || !template) return;
     const cleaned = drafts.filter((d) => d.label.trim().length > 0);
     if (cleaned.length === 0) {
       toast.error("최소 1개 이상의 항목이 필요합니다.");
@@ -141,10 +146,23 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
         goal_id: d.goal_id,
         action_id: d.action_id,
       }));
-      await publishNewVersion(user.id, template.version, newItems);
-      toast.success(`루틴 v${template.version + 1} 적용됨`);
+      const effectiveFrom = mode === "tomorrow" ? tomorrowStr() : todayStr();
+      const resetTodayLogForTemplateId = mode === "reset" ? template.id : undefined;
+      await publishNewVersion(user.id, template.version, newItems, {
+        effectiveFrom,
+        resetTodayLogForTemplateId,
+      });
+      const versionLabel = `v${template.version + 1}`;
+      const msg =
+        mode === "tomorrow"
+          ? `루틴 ${versionLabel} 내일부터 적용됩니다`
+          : mode === "reset"
+            ? `오늘 체크를 초기화하고 ${versionLabel}을 적용했어요`
+            : `루틴 ${versionLabel} 적용됨`;
+      toast.success(msg);
       notifyRoutineTemplateChanged();
       await refresh();
+      setConfirmOpen(false);
       onOpenChange(false);
     } catch (err: any) {
       console.error("[routine] save failed", err);
@@ -152,6 +170,27 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const save = async () => {
+    if (!user) {
+      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
+      return;
+    }
+    if (!template) {
+      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    if (drafts.filter((d) => d.label.trim().length > 0).length === 0) {
+      toast.error("최소 1개 이상의 항목이 필요합니다.");
+      return;
+    }
+    // If today already has checked items, prompt the user.
+    if (checkedIds.length > 0) {
+      setConfirmOpen(true);
+      return;
+    }
+    await performSave("today");
   };
 
   return (
@@ -325,6 +364,36 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>오늘 체크된 루틴이 있어요</AlertDialogTitle>
+            <AlertDialogDescription>
+              오늘 이미 {checkedIds.length}개 항목을 체크했습니다. 새 버전을 언제부터 적용할까요?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel disabled={saving}>닫기</AlertDialogCancel>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => performSave("tomorrow")}
+            >
+              내일부터 적용
+            </Button>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(e) => {
+                e.preventDefault();
+                performSave("reset");
+              }}
+            >
+              오늘 초기화 후 즉시 적용
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

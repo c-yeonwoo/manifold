@@ -36,11 +36,14 @@ export async function getActiveTemplate(userId: string): Promise<{
   template: RoutineTemplate;
   items: RoutineTemplateItem[];
 }> {
+  const today = todayStr();
   const { data: existing, error } = await supabase
     .from("routine_templates")
     .select("*")
     .eq("user_id", userId)
     .eq("is_active", true)
+    .lte("effective_from", today)
+    .order("effective_from", { ascending: false })
     .order("version", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -64,8 +67,10 @@ export async function getActiveTemplate(userId: string): Promise<{
       phase: s.phase,
       position: s.position,
     }));
-    const { error: e2 } = await supabase.from("routine_template_items").insert(seedRows);
-    if (e2) throw e2;
+    if (seedRows.length) {
+      const { error: e2 } = await supabase.from("routine_template_items").insert(seedRows);
+      if (e2) throw e2;
+    }
   }
 
   const { data: items, error: e3 } = await supabase
@@ -126,8 +131,10 @@ export async function listLogs(userId: string, fromDate: string, toDate: string)
 }
 
 /**
- * Replace active template with a new version.
- * Items: array of { label, phase, position, goal_id?, action_id? }
+ * Publish a new template version.
+ * - effectiveFrom: date string (YYYY-MM-DD) when the new template starts being active.
+ * - resetTodayLogForTemplateId: if provided, deletes today's routine_log for that template
+ *   (used when the user wants to reset today's checks and apply the new version immediately).
  */
 export async function publishNewVersion(
   userId: string,
@@ -138,29 +145,36 @@ export async function publishNewVersion(
     position: number;
     goal_id?: string | null;
     action_id?: string | null;
-  }>
+  }>,
+  opts: {
+    effectiveFrom: string;
+    resetTodayLogForTemplateId?: string;
+  }
 ) {
-  // 1. Deactivate all existing active templates for the user
+  // Avoid duplicate scheduled versions: deactivate any existing active template
+  // whose effective_from is >= the new one (future or same-day pending versions).
   const { error: e0 } = await supabase
     .from("routine_templates")
     .update({ is_active: false })
     .eq("user_id", userId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .gte("effective_from", opts.effectiveFrom);
   if (e0) throw e0;
 
-  // 2. Insert new template
+  // Insert new template
   const { data: newTpl, error: e1 } = await supabase
     .from("routine_templates")
     .insert({
       user_id: userId,
       version: currentVersion + 1,
       is_active: true,
+      effective_from: opts.effectiveFrom,
     })
     .select()
     .single();
   if (e1) throw e1;
 
-  // 3. Insert items
+  // Insert items
   if (items.length) {
     const rows = items.map((it) => ({
       template_id: (newTpl as RoutineTemplate).id,
@@ -175,7 +189,25 @@ export async function publishNewVersion(
     if (e2) throw e2;
   }
 
+  // Reset today's log for the prior template if requested
+  if (opts.resetTodayLogForTemplateId) {
+    const today = todayStr();
+    const { error: e3 } = await supabase
+      .from("routine_logs")
+      .delete()
+      .eq("user_id", userId)
+      .eq("log_date", today)
+      .eq("template_id", opts.resetTodayLogForTemplateId);
+    if (e3) throw e3;
+  }
+
   return newTpl as RoutineTemplate;
+}
+
+export function tomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /**
