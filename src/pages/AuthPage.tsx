@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth";
+import { enableGuest } from "@/lib/guest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -55,14 +57,22 @@ export default function AuthPage() {
 
   const google = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
     });
-    if (error) {
-      toast.error(error.message);
+    if (result.error) {
+      toast.error(result.error.message ?? "Google 로그인 실패");
       setBusy(false);
+      return;
     }
+    if (result.redirected) return;
+    nav(from, { replace: true });
+  };
+
+  const browseAsGuest = () => {
+    enableGuest();
+    toast.success("둘러보기 모드로 입장했어요");
+    nav("/", { replace: true });
   };
 
   return (
@@ -109,8 +119,16 @@ export default function AuthPage() {
 
         <button
           type="button"
+          onClick={browseAsGuest}
+          className="text-[12px] text-muted-foreground hover:text-foreground mt-4 w-full text-center underline-offset-4 hover:underline"
+        >
+          로그인 없이 둘러보기 →
+        </button>
+
+        <button
+          type="button"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="text-[12px] text-muted-foreground hover:text-foreground mt-6 w-full text-center"
+          className="text-[12px] text-muted-foreground hover:text-foreground mt-3 w-full text-center"
         >
           {mode === "signin" ? "계정이 없으신가요? 가입하기" : "이미 계정이 있나요? 로그인"}
         </button>
