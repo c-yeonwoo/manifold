@@ -7,11 +7,6 @@ import { listLogs, type RoutineTemplateItem } from "@/lib/routines";
 import RoutineEditor from "@/components/routine/RoutineEditor";
 
 const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
-const PHASE_LABELS: Record<number, string> = {
-  1: "P1 — Mind & Clean Up",
-  2: "P2 — Work",
-  3: "P3 — Work-out",
-};
 
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
