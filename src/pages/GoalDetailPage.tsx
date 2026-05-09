@@ -93,7 +93,7 @@ export default function GoalDetailPage() {
 
   const todayDone = log?.checkedActionIds.length ?? 0;
   const todayPct = goal.actions.length ? (todayDone / goal.actions.length) * 100 : 0;
-  const accent = `hsl(${meta.hue} 60% 60%)`;
+  const accent = isLight ? `hsl(${meta.hue} 55% 40%)` : `hsl(${meta.hue} 60% 60%)`;
 
   return (
     <div className="max-w-3xl animate-fade-up">
