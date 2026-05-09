@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { Sparkles, Link2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QUOTES } from "@/lib/store";
 import { useMantra } from "@/lib/mantra-context";
 import { useRoutine } from "@/lib/routine-context";
+import CategoryBadge from "@/components/routine/CategoryBadge";
 
 export default function Sidebar() {
   const { items, checkedIds, toggle, loading } = useRoutine();
