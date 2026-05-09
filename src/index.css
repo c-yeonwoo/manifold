@@ -6,54 +6,100 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light — Modern Warm: cream paper + terracotta */
   :root {
-    --background: 30 8% 11%;
-    --foreground: 36 18% 92%;
+    --background: 32 38% 96%;
+    --foreground: 18 18% 14%;
 
-    --card: 28 8% 15%;
-    --card-foreground: 36 18% 92%;
+    --card: 0 0% 100%;
+    --card-foreground: 18 18% 14%;
 
-    --popover: 28 8% 17%;
-    --popover-foreground: 36 18% 92%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 18 18% 14%;
 
-    --primary: 32 55% 65%;
-    --primary-foreground: 30 10% 10%;
+    --primary: 12 58% 52%;
+    --primary-foreground: 32 38% 98%;
 
-    --secondary: 28 7% 22%;
-    --secondary-foreground: 36 16% 80%;
+    --secondary: 28 28% 92%;
+    --secondary-foreground: 18 16% 22%;
 
-    --muted: 28 7% 19%;
-    --muted-foreground: 30 8% 60%;
+    --muted: 28 22% 93%;
+    --muted-foreground: 22 10% 42%;
 
-    --accent: 32 55% 65%;
-    --accent-foreground: 30 10% 10%;
+    --accent: 12 58% 52%;
+    --accent-foreground: 32 38% 98%;
 
-    --destructive: 0 65% 55%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 28 7% 25%;
-    --input: 28 7% 25%;
-    --ring: 32 55% 65%;
+    --border: 28 18% 87%;
+    --input: 28 18% 87%;
+    --ring: 12 58% 52%;
 
     --radius: 0.6rem;
 
-    --sidebar-background: 28 8% 13%;
-    --sidebar-foreground: 36 16% 82%;
-    --sidebar-primary: 32 55% 65%;
-    --sidebar-primary-foreground: 30 10% 10%;
-    --sidebar-accent: 28 7% 19%;
-    --sidebar-accent-foreground: 36 18% 92%;
-    --sidebar-border: 28 7% 22%;
-    --sidebar-ring: 32 55% 65%;
+    --sidebar-background: 32 32% 94%;
+    --sidebar-foreground: 18 16% 22%;
+    --sidebar-primary: 12 58% 52%;
+    --sidebar-primary-foreground: 32 38% 98%;
+    --sidebar-accent: 28 24% 90%;
+    --sidebar-accent-foreground: 18 18% 14%;
+    --sidebar-border: 28 18% 85%;
+    --sidebar-ring: 12 58% 52%;
 
-    /* Custom tokens */
-    --surface-elevated: 28 8% 18%;
-    --success: 142 50% 55%;
-    --success-foreground: 142 50% 92%;
-    --amber-pulse: 32 70% 62%;
+    --surface-elevated: 0 0% 100%;
+    --success: 152 42% 42%;
+    --success-foreground: 152 42% 96%;
+    --amber-pulse: 12 65% 55%;
     --mono-font: 'DM Mono', monospace;
     --body-font: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-    --phase-progress: 32 55% 65%;
+    --phase-progress: 12 58% 52%;
+  }
+
+  /* Dark — Modern Warm: warm charcoal + terracotta-cream */
+  .dark {
+    --background: 20 8% 9%;
+    --foreground: 30 25% 92%;
+
+    --card: 20 7% 13%;
+    --card-foreground: 30 25% 92%;
+
+    --popover: 20 7% 14%;
+    --popover-foreground: 30 25% 92%;
+
+    --primary: 14 62% 62%;
+    --primary-foreground: 20 10% 10%;
+
+    --secondary: 20 6% 19%;
+    --secondary-foreground: 30 18% 84%;
+
+    --muted: 20 6% 17%;
+    --muted-foreground: 28 8% 60%;
+
+    --accent: 14 62% 62%;
+    --accent-foreground: 20 10% 10%;
+
+    --destructive: 0 60% 52%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 20 6% 22%;
+    --input: 20 6% 22%;
+    --ring: 14 62% 62%;
+
+    --sidebar-background: 20 7% 11%;
+    --sidebar-foreground: 30 18% 84%;
+    --sidebar-primary: 14 62% 62%;
+    --sidebar-primary-foreground: 20 10% 10%;
+    --sidebar-accent: 20 6% 17%;
+    --sidebar-accent-foreground: 30 25% 92%;
+    --sidebar-border: 20 6% 20%;
+    --sidebar-ring: 14 62% 62%;
+
+    --surface-elevated: 20 7% 16%;
+    --success: 152 45% 55%;
+    --success-foreground: 152 45% 95%;
+    --amber-pulse: 14 70% 62%;
+    --phase-progress: 14 62% 62%;
   }
 }
 
