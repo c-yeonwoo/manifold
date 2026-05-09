@@ -1,10 +1,20 @@
-import { useMemo, useSyncExternalStore } from "react";
-import { loadJSON, getTodayKey, DEFAULT_ROUTINES, type RoutineItem } from "@/lib/store";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Link2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRoutine } from "@/lib/routine-context";
+import { useAuth } from "@/lib/auth";
+import { listLogs, type RoutineTemplateItem } from "@/lib/routines";
+import RoutineEditor from "@/components/routine/RoutineEditor";
 
 const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+const PHASE_LABELS: Record<number, string> = {
+  1: "P1 — Mind & Clean Up",
+  2: "P2 — Work",
+  3: "P3 — Work-out",
+};
 
-function getDateKey(d: Date) {
-  return `routine_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function getDaysInYear(year: number) {
@@ -17,12 +27,6 @@ function getDaysInYear(year: number) {
   return days;
 }
 
-function getCompletionRate(key: string): number {
-  const data = loadJSON<RoutineItem[]>(key, []);
-  if (!data.length) return 0;
-  return data.filter(i => i.done).length / data.length;
-}
-
 function getRateColor(rate: number): string {
   if (rate === 0) return "bg-secondary";
   if (rate < 0.3) return "bg-[hsl(142_50%_20%)]";
@@ -31,46 +35,51 @@ function getRateColor(rate: number): string {
   return "bg-[hsl(142_50%_45%)]";
 }
 
-// Subscribe to localStorage changes from Sidebar
-function useRoutineItems(): RoutineItem[] {
-  const todayKey = getTodayKey("routine");
-  const subscribe = (cb: () => void) => {
-    const handler = (e: StorageEvent) => { if (e.key === todayKey) cb(); };
-    // Also listen to custom event for same-tab updates
-    const customHandler = () => cb();
-    window.addEventListener("storage", handler);
-    window.addEventListener("routine-updated", customHandler);
-    return () => {
-      window.removeEventListener("storage", handler);
-      window.removeEventListener("routine-updated", customHandler);
-    };
-  };
-  const getSnapshot = () => localStorage.getItem(todayKey) ?? "";
-  const raw = useSyncExternalStore(subscribe, getSnapshot);
-  return raw ? JSON.parse(raw) : DEFAULT_ROUTINES;
-}
-
 export default function RoutinePage() {
+  const { user } = useAuth();
+  const { items, checkedIds, toggle, template } = useRoutine();
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [logsByDate, setLogsByDate] = useState<Record<string, { count: number }>>({});
+
   const year = new Date().getFullYear();
-  const days = useMemo(() => getDaysInYear(year), [year]);
   const today = new Date();
-  const items = useRoutineItems();
+
+  // Items count for today's template (used as denominator for today's cell)
+  const itemCount = items.length;
+
+  useEffect(() => {
+    if (!user) return;
+    listLogs(user.id, `${year}-01-01`, `${year}-12-31`).then((rows) => {
+      const map: Record<string, { count: number }> = {};
+      rows.forEach((r) => {
+        const ids = (r.checked_item_ids ?? []) as string[];
+        map[r.log_date] = { count: ids.length };
+      });
+      setLogsByDate(map);
+    });
+  }, [user, year, checkedIds]);
+
+  const days = useMemo(() => getDaysInYear(year), [year]);
 
   const heatmapData = useMemo(() => {
-    return days.map(d => {
-      const key = getDateKey(d);
+    return days.map((d) => {
       const isFuture = d > today;
       const isToday = d.toDateString() === today.toDateString();
-      const rate = isFuture ? -1 : (isToday ? items.filter(i=>i.done).length / items.length : getCompletionRate(key));
+      const key = isoDate(d);
+      const logCount = logsByDate[key]?.count ?? 0;
+      // Use today's denominator for any day; rough approximation since templates change.
+      const denom = itemCount || 1;
+      const rate = isFuture ? -1 : Math.min(1, logCount / denom);
       return { date: d, rate, isFuture, isToday };
     });
-  }, [days, items, today]);
+  }, [days, today, logsByDate, itemCount]);
 
   const weeks: typeof heatmapData[number][][] = [];
   let currentWeek: typeof heatmapData[number][] = [];
   const firstDayOfWeek = days[0].getDay();
-  for (let i = 0; i < firstDayOfWeek; i++) currentWeek.push({ date: new Date(0), rate: -1, isFuture: true, isToday: false });
-  heatmapData.forEach(d => {
+  for (let i = 0; i < firstDayOfWeek; i++)
+    currentWeek.push({ date: new Date(0), rate: -1, isFuture: true, isToday: false });
+  heatmapData.forEach((d) => {
     currentWeek.push(d);
     if (currentWeek.length === 7) { weeks.push(currentWeek); currentWeek = []; }
   });
@@ -83,7 +92,7 @@ export default function RoutinePage() {
     const pos: { label: string; col: number }[] = [];
     let lastMonth = -1;
     weeks.forEach((week, wi) => {
-      const validDay = week.find(d => d.date.getFullYear() === year);
+      const validDay = week.find((d) => d.date.getFullYear() === year);
       if (validDay && validDay.date.getMonth() !== lastMonth) {
         lastMonth = validDay.date.getMonth();
         pos.push({ label: MONTHS[lastMonth], col: wi });
@@ -92,26 +101,97 @@ export default function RoutinePage() {
     return pos;
   }, [weeks, year]);
 
-  const doneCount = items.filter(i => i.done).length;
-  const totalCount = items.length;
-  const todayPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
+  const doneCount = checkedIds.length;
+  const todayPct = itemCount ? Math.round((doneCount / itemCount) * 100) : 0;
 
   return (
     <div className="max-w-5xl animate-fade-up">
+      {/* Today's checklist */}
+      <div className="bg-card rounded-lg border border-border p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-[15px] font-medium text-foreground">오늘의 루틴</h2>
+            {template && (
+              <span className="text-[10px] font-mono text-muted-foreground">
+                v{template.version} · {template.effective_from} 부터 적용
+              </span>
+            )}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setEditorOpen(true)}>
+            <Pencil className="w-3.5 h-3.5 mr-1.5" /> 루틴 편집
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[1, 2, 3].map((phase) => {
+            const phaseItems = items.filter((it) => it.phase === phase);
+            const doneInPhase = phaseItems.filter((it) => checkedIds.includes(it.id)).length;
+            const pct = phaseItems.length ? (doneInPhase / phaseItems.length) * 100 : 0;
+            return (
+              <div key={phase}>
+                <div className="text-[11px] uppercase tracking-wider text-primary/80 mb-2">
+                  {PHASE_LABELS[phase]}
+                </div>
+                <div className="h-1 bg-secondary rounded-full mb-2.5 overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="space-y-1.5">
+                  {phaseItems.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground/60 italic">없음</p>
+                  )}
+                  {phaseItems.map((item: RoutineTemplateItem) => {
+                    const done = checkedIds.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => toggle(item)}
+                        className="flex items-start gap-2 w-full text-left py-0.5 group"
+                      >
+                        <span
+                          className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
+                            done
+                              ? "border-success bg-success/20"
+                              : "border-muted-foreground/30 group-hover:border-primary"
+                          }`}
+                        >
+                          {done && (
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                              <path d="M1.5 4L3.2 5.7L6.5 2.3" stroke="hsl(var(--success))" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[13px] leading-snug inline-flex items-center gap-1 ${
+                            done ? "text-muted-foreground line-through" : "text-foreground"
+                          }`}
+                        >
+                          {item.goal_id && <Link2 className="w-3 h-3 text-primary/70 shrink-0" />}
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6 stagger-children">
         <div className="bg-card rounded-lg p-4 border border-border">
           <span className="text-[11px] text-muted-foreground uppercase tracking-wider block mb-1">오늘 달성률</span>
           <span className="text-2xl font-mono font-medium text-foreground">{todayPct}%</span>
-          <span className="text-[12px] text-muted-foreground ml-2">{doneCount}/{totalCount}</span>
+          <span className="text-[12px] text-muted-foreground ml-2">{doneCount}/{itemCount}</span>
         </div>
         <div className="bg-card rounded-lg p-4 border border-border">
-          <span className="text-[11px] text-muted-foreground uppercase tracking-wider block mb-1">연속 달성</span>
-          <span className="text-2xl font-mono font-medium text-foreground">—</span>
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wider block mb-1">기록된 일수</span>
+          <span className="text-2xl font-mono font-medium text-foreground">{Object.keys(logsByDate).length}</span>
         </div>
         <div className="bg-card rounded-lg p-4 border border-border">
-          <span className="text-[11px] text-muted-foreground uppercase tracking-wider block mb-1">이번 달 평균</span>
-          <span className="text-2xl font-mono font-medium text-foreground">—</span>
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wider block mb-1">현재 버전</span>
+          <span className="text-2xl font-mono font-medium text-foreground">v{template?.version ?? "-"}</span>
         </div>
       </div>
 
@@ -167,6 +247,8 @@ export default function RoutinePage() {
           <span className="text-[10px] text-muted-foreground ml-1">More</span>
         </div>
       </div>
+
+      <RoutineEditor open={editorOpen} onOpenChange={setEditorOpen} />
     </div>
   );
 }
