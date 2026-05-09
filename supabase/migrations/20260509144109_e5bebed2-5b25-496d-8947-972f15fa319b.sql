@@ -1,0 +1,1 @@
+ALTER TABLE public.routine_template_items ALTER COLUMN goal_id TYPE text USING goal_id::text;
