@@ -32,6 +32,8 @@ function useTick() {
 
 export default function GoalDetailPage() {
   const { key, id } = useParams<{ key: string; id: string }>();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   useTick();
   const [edit, setEdit] = useState(false);
   const [note, setNote] = useState("");
