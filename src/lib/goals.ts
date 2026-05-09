@@ -44,13 +44,26 @@ export interface GoalLog {
   note: string;
 }
 
-const GOALS_KEY = "goals_v1";
+// ---- User-scoped storage ----
+// Goals & logs were originally stored under fixed keys, which caused data
+// from previous sessions/users to "leak" across logins on the same browser.
+// We now scope every key by the current user id (set by AuthProvider).
+let CURRENT_USER_ID: string | null = null;
+
+export function setGoalsUserScope(userId: string | null) {
+  if (CURRENT_USER_ID === userId) return;
+  CURRENT_USER_ID = userId;
+  window.dispatchEvent(new Event("goals-updated"));
+}
+
+const goalsKey = () =>
+  CURRENT_USER_ID ? `goals_v1__${CURRENT_USER_ID}` : `goals_v1__guest`;
 
 export function loadGoals(): Goal[] {
-  return loadJSON<Goal[]>(GOALS_KEY, []);
+  return loadJSON<Goal[]>(goalsKey(), []);
 }
 export function saveGoals(goals: Goal[]) {
-  saveJSON(GOALS_KEY, goals);
+  saveJSON(goalsKey(), goals);
   window.dispatchEvent(new Event("goals-updated"));
 }
 export function goalsByCategory(category: CategoryKey): Goal[] {
@@ -76,7 +89,8 @@ export const todayStr = () => {
 };
 
 export function logKey(goalId: string, date: string) {
-  return `goal_log_${goalId}_${date}`;
+  const scope = CURRENT_USER_ID ?? "guest";
+  return `goal_log__${scope}__${goalId}__${date}`;
 }
 export function loadLog(goalId: string, date: string): GoalLog {
   return loadJSON<GoalLog>(logKey(goalId, date), {
