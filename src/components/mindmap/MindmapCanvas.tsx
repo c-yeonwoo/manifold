@@ -22,7 +22,7 @@ const H = 640;
 const CX = W / 2;
 const CY = H / 2;
 const CAT_R = 230;
-const GOAL_R = 110;
+const GOAL_R = 140;
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 3;
