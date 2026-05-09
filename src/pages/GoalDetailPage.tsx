@@ -278,7 +278,7 @@ export default function GoalDetailPage() {
           {logs
             .filter((l) => l.date !== today && (l.note || l.checkedActionIds.length))
             .map((l) => (
-              <div key={l.date} className="border-l-2 pl-3" style={{ borderColor: `hsl(${meta.hue} 40% 35%)` }}>
+              <div key={l.date} className="border-l-2 pl-3" style={{ borderColor: isLight ? `hsl(${meta.hue} 40% 70%)` : `hsl(${meta.hue} 40% 35%)` }}>
                 <div className="text-[11px] font-mono-num text-muted-foreground">
                   {l.date} · {l.checkedActionIds.length}/{goal.actions.length}
                 </div>
