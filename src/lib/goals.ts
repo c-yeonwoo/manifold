@@ -34,6 +34,7 @@ export interface Goal {
   imageUrl?: string;
   deadline?: string;
   createdAt: string;
+  completedAt?: string; // ISO timestamp when the goal was achieved
   actions: ActionItem[];
 }
 
@@ -66,8 +67,18 @@ export function saveGoals(goals: Goal[]) {
   saveJSON(goalsKey(), goals);
   window.dispatchEvent(new Event("goals-updated"));
 }
-export function goalsByCategory(category: CategoryKey): Goal[] {
-  return loadGoals().filter((g) => g.category === category);
+export function goalsByCategory(category: CategoryKey, opts: { includeCompleted?: boolean } = {}): Goal[] {
+  return loadGoals().filter(
+    (g) => g.category === category && (opts.includeCompleted ? true : !g.completedAt)
+  );
+}
+export function activeGoalsByCategory(category: CategoryKey): Goal[] {
+  return loadGoals().filter((g) => g.category === category && !g.completedAt);
+}
+export function completedGoalsByCategory(category: CategoryKey): Goal[] {
+  return loadGoals()
+    .filter((g) => g.category === category && !!g.completedAt)
+    .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
 }
 export function getGoal(id: string): Goal | undefined {
   return loadGoals().find((g) => g.id === id);
@@ -77,6 +88,20 @@ export function upsertGoal(goal: Goal) {
   const idx = all.findIndex((g) => g.id === goal.id);
   if (idx >= 0) all[idx] = goal;
   else all.push(goal);
+  saveGoals(all);
+}
+export function completeGoal(id: string) {
+  const all = loadGoals();
+  const g = all.find((x) => x.id === id);
+  if (!g) return;
+  g.completedAt = new Date().toISOString();
+  saveGoals(all);
+}
+export function reopenGoal(id: string) {
+  const all = loadGoals();
+  const g = all.find((x) => x.id === id);
+  if (!g) return;
+  delete g.completedAt;
   saveGoals(all);
 }
 export function deleteGoal(id: string) {
