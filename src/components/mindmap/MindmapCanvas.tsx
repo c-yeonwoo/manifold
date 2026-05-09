@@ -478,7 +478,15 @@ function GoalNode({
     lines.push(t.slice(6));
   }
   return (
-    <g onClick={onClick} style={{ cursor: "pointer" }} className="hover:opacity-90">
+    <g
+      onClick={onClick}
+      style={{
+        cursor: "pointer",
+        opacity: dimmed ? 0.2 : 1,
+        transition: "opacity 0.3s ease",
+      }}
+      className="hover:opacity-90"
+    >
       <circle cx={cx} cy={cy} r={r} fill="hsl(var(--card))" stroke={`hsl(${hue} 40% 30%)`} strokeWidth={1} />
       <circle
         cx={cx}
