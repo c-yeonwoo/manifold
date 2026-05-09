@@ -130,9 +130,9 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
       notifyRoutineTemplateChanged();
       await refresh();
       onOpenChange(false);
-    } catch (err) {
-      console.error(err);
-      toast.error("저장 실패");
+    } catch (err: any) {
+      console.error("[routine] save failed", err);
+      toast.error(`저장 실패: ${err?.message ?? "알 수 없는 오류"}`);
     } finally {
       setSaving(false);
     }
