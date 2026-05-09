@@ -364,6 +364,36 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>오늘 체크된 루틴이 있어요</AlertDialogTitle>
+            <AlertDialogDescription>
+              오늘 이미 {checkedIds.length}개 항목을 체크했습니다. 새 버전을 언제부터 적용할까요?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel disabled={saving}>닫기</AlertDialogCancel>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => performSave("tomorrow")}
+            >
+              내일부터 적용
+            </Button>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(e) => {
+                e.preventDefault();
+                performSave("reset");
+              }}
+            >
+              오늘 초기화 후 즉시 적용
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
