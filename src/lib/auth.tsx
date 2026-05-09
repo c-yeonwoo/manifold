@@ -20,11 +20,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up listener FIRST
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      setGoalsUserScope(s?.user?.id ?? null);
       setLoading(false);
     });
     // THEN check existing session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      setGoalsUserScope(data.session?.user?.id ?? null);
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();
