@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, goalsByCategory, todayProgress, type CategoryMeta, type Goal } from "@/lib/goals";
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useRef, useState, useCallback, useEffect } from "react";
 
 function useGoalsTick() {
   return useSyncExternalStore(
@@ -24,9 +24,102 @@ const CY = H / 2;
 const CAT_R = 230;
 const GOAL_R = 110;
 
+const MIN_SCALE = 0.4;
+const MAX_SCALE = 3;
+
 export default function MindmapCanvas() {
   useGoalsTick();
   const nav = useNavigate();
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  const panState = useRef<{ active: boolean; moved: boolean; startX: number; startY: number; origX: number; origY: number }>({
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+  });
+
+  const clientToSvg = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
+    const sx = (clientX - rect.left) * (W / rect.width);
+    const sy = (clientY - rect.top) * (H / rect.height);
+    return { x: sx, y: sy };
+  }, []);
+
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+      const { x: mx, y: my } = clientToSvg(e.clientX, e.clientY);
+      setView((v) => {
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
+        // keep mouse point stable
+        const k = newScale / v.scale;
+        const nx = mx - k * (mx - v.x);
+        const ny = my - k * (my - v.y);
+        return { x: nx, y: ny, scale: newScale };
+      });
+    },
+    [clientToSvg]
+  );
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    svg.addEventListener("wheel", handleWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    panState.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: view.x,
+      origY: view.y,
+    };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const s = panState.current;
+    if (!s.active) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const dx = (e.clientX - s.startX) * (W / rect.width);
+    const dy = (e.clientY - s.startY) * (H / rect.height);
+    if (Math.abs(e.clientX - s.startX) + Math.abs(e.clientY - s.startY) > 3) s.moved = true;
+    setView((v) => ({ ...v, x: s.origX + dx, y: s.origY + dy }));
+  };
+
+  const onPointerUp = () => {
+    panState.current.active = false;
+  };
+
+  const guardedNav = (to: string) => {
+    if (panState.current.moved) return;
+    nav(to);
+  };
+
+  const reset = () => setView({ x: 0, y: 0, scale: 1 });
+  const zoomBy = (factor: number) => {
+    setView((v) => {
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
+      const k = newScale / v.scale;
+      const cx = W / 2;
+      const cy = H / 2;
+      const nx = cx - k * (cx - v.x);
+      const ny = cy - k * (cy - v.y);
+      return { x: nx, y: ny, scale: newScale };
+    });
+  };
 
   const catNodes = CATEGORIES.map((c, i) => {
     const angle = (-Math.PI / 2) + (i * (2 * Math.PI)) / CATEGORIES.length;
@@ -40,12 +133,47 @@ export default function MindmapCanvas() {
   });
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full relative">
+      {/* zoom controls */}
+      <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => zoomBy(1.2)}
+          className="w-8 h-8 rounded-md bg-card border border-border text-foreground hover:bg-accent hover:text-accent-foreground text-sm"
+          aria-label="zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={() => zoomBy(1 / 1.2)}
+          className="w-8 h-8 rounded-md bg-card border border-border text-foreground hover:bg-accent hover:text-accent-foreground text-sm"
+          aria-label="zoom out"
+        >
+          −
+        </button>
+        <button
+          onClick={reset}
+          className="w-8 h-8 rounded-md bg-card border border-border text-muted-foreground hover:text-foreground text-[10px]"
+          aria-label="reset"
+          title="원위치"
+        >
+          ⟳
+        </button>
+      </div>
+
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full max-w-5xl mx-auto"
-        style={{ minWidth: 720 }}
+        className="w-full max-w-5xl mx-auto select-none touch-none"
+        style={{ minWidth: 720, cursor: panState.current.active ? "grabbing" : "grab" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
+        {/* invisible background so empty space catches drags */}
+        <rect x={0} y={0} width={W} height={H} fill="transparent" />
+
+        <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
         {/* edges from center to category */}
         {catNodes.map((n) => (
           <line
@@ -119,7 +247,7 @@ export default function MindmapCanvas() {
             key={n.key}
             node={n}
             delay={i * 80}
-            onClick={() => nav(`/category/${n.key}`)}
+            onClick={() => guardedNav(`/category/${n.key}`)}
           />
         ))}
 
@@ -137,12 +265,16 @@ export default function MindmapCanvas() {
                 goal={g}
                 done={p.done}
                 total={p.total}
-                onClick={() => nav(`/category/${n.key}/goal/${g.id}`)}
+                onClick={() => guardedNav(`/category/${n.key}/goal/${g.id}`)}
               />
             );
           })
         )}
+        </g>
       </svg>
+      <p className="text-center text-[10px] text-muted-foreground mt-1">
+        드래그로 이동 · 휠 또는 +/− 버튼으로 확대/축소
+      </p>
     </div>
   );
 }
