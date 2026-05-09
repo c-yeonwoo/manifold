@@ -243,7 +243,17 @@ export default function MindmapCanvas() {
         onPointerCancel={onPointerUp}
       >
         {/* invisible background so empty space catches drags */}
-        <rect x={0} y={0} width={W} height={H} fill="transparent" />
+        <rect
+          x={0}
+          y={0}
+          width={W}
+          height={H}
+          fill="transparent"
+          onClick={() => {
+            if (panState.current.moved) return;
+            clearFocus();
+          }}
+        />
 
         <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
         {/* edges from center to category */}
