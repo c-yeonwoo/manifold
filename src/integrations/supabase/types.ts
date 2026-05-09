@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      goal_logs: {
+        Row: {
+          checked_action_ids: Json
+          created_at: string
+          goal_id: string
+          id: string
+          log_date: string
+          note: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked_action_ids?: Json
+          created_at?: string
+          goal_id: string
+          id?: string
+          log_date: string
+          note?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked_action_ids?: Json
+          created_at?: string
+          goal_id?: string
+          id?: string
+          log_date?: string
+          note?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_logs_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          actions: Json
+          category: string
+          created_at: string
+          deadline: string | null
+          id: string
+          image_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          vision: string
+        }
+        Insert: {
+          actions?: Json
+          category: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          image_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          vision?: string
+        }
+        Update: {
+          actions?: Json
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          image_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vision?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          nickname: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          nickname?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          nickname?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
