@@ -25,6 +25,17 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
     Boolean(initial?.vision || initial?.deadline || initial?.imageUrl)
   );
 
+  // Reset form whenever the dialog opens, so "new goal" never inherits stale state.
+  useEffect(() => {
+    if (!open) return;
+    setTitle(initial?.title ?? "");
+    setVision(initial?.vision ?? "");
+    setDeadline(initial?.deadline ?? "");
+    setImageUrl(initial?.imageUrl ?? "");
+    setActions(initial?.actions?.length ? initial.actions : [{ id: uid(), label: "" }]);
+    setShowAdvanced(Boolean(initial?.vision || initial?.deadline || initial?.imageUrl));
+  }, [open, initial]);
+
   const submit = () => {
     if (!title.trim()) return;
     const goal: Goal = {
