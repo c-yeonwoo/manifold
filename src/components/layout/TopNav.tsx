@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import ProfileMenu from "./ProfileMenu";
 
 const tabs = [
-  { to: "/", label: "마인드맵" },
+  { to: "/", label: "비전 보드" },
   { to: "/routine", label: "루틴" },
   { to: "/finance", label: "지출" },
   { to: "/mantra", label: "확언" },
