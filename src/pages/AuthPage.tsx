@@ -57,14 +57,22 @@ export default function AuthPage() {
 
   const google = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
     });
-    if (error) {
-      toast.error(error.message);
+    if (result.error) {
+      toast.error(result.error.message ?? "Google 로그인 실패");
       setBusy(false);
+      return;
     }
+    if (result.redirected) return;
+    nav(from, { replace: true });
+  };
+
+  const browseAsGuest = () => {
+    enableGuest();
+    toast.success("둘러보기 모드로 입장했어요");
+    nav("/", { replace: true });
   };
 
   return (
