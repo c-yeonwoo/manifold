@@ -1,106 +1,113 @@
-## 컨셉
+# 확언(Mantra) 기능 추가 플랜
 
-"원하는 건 뭐든 이뤄진다" — 잠재의식·시각화 기반 목표 트래커.
-'나'를 중심으로 6개 분야가 뻗어나가는 마인드맵 홈, 분야별 최대 3개 목표, 목표마다 비전 + 액션 + 일지.
+IAM의 시그니처 기능. 사용자가 자기 확언 N개를 리스트로 키우고, 평소엔 은은하게 노출되다가 필요할 때 풀스크린으로 꺼내 소리내어 읽을 수 있게.
 
-## 6개 카테고리 (마인드맵 노드)
+## 1. 데이터 (Lovable Cloud)
 
-```
-              [Growth]         [Play]
-                  \\           /
-        [Wealth] — ( 나 ) — [Love]
-                  /           \\
-              [Health]         [Work]
-```
+`affirmations` 테이블 신설:
+- `text` (필수)
+- `position` (정수, 정렬용)
+- `is_favorite` (boolean, 즐겨찾기 → 롤링/사이드바 우선 노출)
+- `category` (nullable text, 6개 카테고리 중 선택)
+- 표준 필드 (id, user_id, created_at, updated_at)
 
-- **Health** — 신체, 운동, 식단, 단백질
-- **Wealth** — 자산, 투자, 부동산, 포트폴리오
-- **Work** — 커리어, 프로젝트, 업무 성장
-- **Love** — 관계, 가족, 파트너십
-- **Growth** — 학습 (언어/독서/경제 공부 흡수)
-- **Play** — 취미, 여가, 창의
+RLS: 본인 데이터만 CRUD. `goals`와 동일 패턴.
 
-각 카테고리는 색상 토큰으로 구분 (디자인 시스템 내 hsl 기반).
+## 2. GNB 4번째 탭
 
-## 메인 화면: 마인드맵 홈 (`/`)
+`TopNav.tsx`에 ✨ 아이콘 + "만트라" 추가 → `/mantra` 라우트.
+순서: 마인드맵 / 루틴 / 지출 / **만트라**.
 
-- SVG 기반, 중앙 '나' 노드 + 6개 카테고리 노드가 방사형으로 배치
-- 각 카테고리 노드에서 그 분야에 등록된 목표(최대 3개)가 작은 자식 노드로 한 단계 더 뻗어나감
-- 노드에 오늘 진척률 링(예: 2/3 액션 완료) 표시
-- 카테고리 노드 클릭 → 카테고리 페이지(목표 리스트 + 추가)
-- 목표 노드 클릭 → 목표 상세 페이지
-- 부드러운 SVG 라인, hover 시 강조, framer-motion으로 등장 애니메이션
+## 3. 만트라 관리 페이지 `/mantra`
 
-## 카테고리 페이지 (`/category/:key`)
-
-- 해당 분야의 목표 카드 1~3개 + "목표 추가" 버튼 (3개 도달 시 비활성)
-- 목표 생성 모달: 제목, 한 줄 비전, 기한(선택), 핵심 액션 아이템들
-
-## 목표 상세 페이지 (`/category/:key/goal/:id`)
-
-1. **비전 패널** — 큰 타이포로 "나는 ___이다/한다" 형태 단언문, 관련 이미지 URL(선택), 동기 메모
-2. **오늘의 액션 체크리스트** — 매일 반복되는 액션 토글, 체크 시 기록에 자동 반영
-3. **일자별 기록(저널)** — 날짜별 한 줄 메모 + 자유 텍스트, Cmd+Enter 저장
-4. **진척도 바** — 누적 액션 완료 수 / 연속 일수 / 시작 후 경과일
-
-## 사이드바 / 네비
-
-- 사이드바 P1·P2·P3 데일리 루틴 체크는 그대로 유지 (사용자가 좋다고 함)
-- 상단 네비 단순화: **홈(마인드맵) / 루틴 / 지출** 3개만
-- 기존 페이지(경제·일본어·영어·헬스·부동산·독서·포트폴리오) 라우트와 파일은 **삭제**, 해당 활동은 각 카테고리 목표의 액션으로 사용자가 직접 등록
-- 루틴(히트맵), 지출은 그대로 유지
-
-## 데이터 모델 (localStorage, `src/lib/store.ts` 확장)
-
-```ts
-type CategoryKey = "health"|"wealth"|"work"|"love"|"growth"|"play";
-
-interface Goal {
-  id: string;
-  category: CategoryKey;
-  title: string;          // "월 1천 저축"
-  vision: string;         // "나는 매달 안정적으로 저축한다"
-  imageUrl?: string;
-  deadline?: string;
-  createdAt: string;
-  actions: ActionItem[];  // 반복 체크 항목
-}
-interface ActionItem { id: string; label: string; }
-interface GoalLog {
-  goalId: string;
-  date: string;           // YYYY-MM-DD
-  checkedActionIds: string[];
-  note: string;
-}
+```text
+┌─────────────────────────────────────────┐
+│  내 만트라                  ▶ 풀스크린 읽기 │
+│  소리내어 읽고, 매일 새겨두는 한 줄들       │
+├─────────────────────────────────────────┤
+│  + 새 확언 추가...              [Cmd+↵]  │
+├─────────────────────────────────────────┤
+│  ⋮⋮ 1. 나는 매일 한 단계씩 성장한다 ⭐ #성장│
+│  ⋮⋮ 2. 나는 지금 이 순간에 감사한다  ⭐    │
+│  ⋮⋮ 3. ...                              │
+└─────────────────────────────────────────┘
 ```
 
-키: `goals`(전체 배열), `goal_log_{goalId}_{date}`.
+기능:
+- 한 줄 인풋 + Cmd+Enter로 추가
+- 인라인 편집(클릭 시 수정), 삭제(휴지통)
+- ⭐ 즐겨찾기 토글
+- 드래그로 순서 변경(`position` 업데이트)
+- 카테고리 칩(선택, 비워둘 수 있음)
+- 우측 상단 "▶ 풀스크린 읽기" 버튼 → 풀스크린 리더 진입
 
-## 파일 변경
+## 4. 풀스크린 만트라 리더
 
-**신규**
-- `src/pages/MindmapHome.tsx` — 메인 마인드맵
-- `src/pages/CategoryPage.tsx` — 분야별 목표 리스트
-- `src/pages/GoalDetailPage.tsx` — 비전 + 액션 + 일지 + 진척도
-- `src/components/mindmap/MindmapCanvas.tsx` — SVG 노드/엣지
-- `src/components/goals/GoalForm.tsx` — 생성/편집 모달
-- `src/lib/goals.ts` — CRUD 헬퍼
+전역 모달(어디서든 단축키 `M` 또는 진입점에서 호출).
 
-**수정**
-- `src/App.tsx` — 라우트 재구성
-- `src/components/layout/TopNav.tsx` — 3개 탭으로 축소
-- `src/lib/store.ts` — Goal/Log 타입 + 카테고리 메타
+```text
+┌──────────────────────────────────────┐
+│                                  ✕   │
+│                                       │
+│                                       │
+│      나는 매일 한 단계씩                │
+│      성장한다.                         │
+│                                       │
+│                                       │
+│              3 / 10                   │
+│      ◀  ●○○  스페이스: 다음  ▶        │
+│      [ 자동재생 ]  [ 소리내어 읽음 ✓ ] │
+└──────────────────────────────────────┘
+```
 
-**삭제**
-- `EconomyPage.tsx`, `JapanesePage.tsx`, `EnglishPage.tsx`, `HealthPage.tsx`, `PropertyPage.tsx`, `ReadingPage.tsx`, `PortfolioPage.tsx`
+- 전체 화면 검정 배경, 큰 디스플레이 타이포(세리프 강조)
+- 좌/우 화살표 또는 스페이스로 한 장씩
+- 자동재생(5초 간격) 토글
+- "소리내어 읽음" 체크 시 그 회기는 완료(추후 streak로 확장 여지)
+- ESC로 닫기
 
-**유지**
-- `RoutinePage.tsx`, `FinancePage.tsx`, `Sidebar.tsx`(루틴 체크)
+## 5. 상단 글로벌 롤링 바
 
-## 디자인 노트
+App 헤더 아래 1줄 띠:
+- 8초마다 fade로 다음 확언으로 회전
+- 즐겨찾기(⭐) 우선, 없으면 전체에서
+- 호버 시 정지, 클릭 시 풀스크린 리더 진입
+- 인증된 페이지에서만, 확언이 1개 이상일 때만 노출
+- 사용자 설정으로 끄기 가능(프로필 메뉴)
 
-- 다크 #0d0e10 + 앰버 #c8a96e 기조 유지
-- 카테고리별 액센트 컬러 6종을 hsl 토큰으로 `index.css`에 추가
-- 마인드맵: 중앙 노드는 큰 원형, 카테고리 노드는 중간 원형 + 아이콘(lucide), 목표 노드는 작은 pill
-- framer-motion으로 노드 stagger 등장, 라인은 SVG path drawing 애니메이션
-- "원하는 건 뭐든 이뤄진다" 같은 만트라를 홈 하단에 은은하게 노출
+## 6. 사이드바 데일리 쿼트 자리
+
+기존 일반 명언 → **본인 확언 1개 랜덤** 표시.
+- 확언이 0개면 기본 명언 fallback + "내 만트라 만들기 →" 링크
+- 작은 ✨ 아이콘 → 풀스크린 리더
+
+## 7. 빈 상태
+
+`/mantra`에 확언 0개일 때:
+- 안내 문구 + 예시 5~6개를 인풋 옆에 한 번 클릭으로 추가할 수 있는 칩으로 제시
+- 사용자가 보낸 10개 중 일부를 시드 예시로 사용
+
+## 기술 메모
+
+- 테이블: `affirmations` + RLS 4종(select/insert/update/delete own)
+- 인덱스: `(user_id, position)` 정렬용
+- 라우팅: `/mantra` 추가, ProtectedRoute 적용
+- 새 컴포넌트:
+  - `pages/MantraPage.tsx`
+  - `components/mantra/MantraList.tsx`
+  - `components/mantra/MantraReader.tsx` (풀스크린 모달, 전역 마운트)
+  - `components/mantra/MantraTicker.tsx` (상단 롤링 바)
+  - `lib/mantra-context.tsx` (리더 열기 전역 함수, 확언 캐시)
+- `TopNav.tsx`에 4번째 탭 추가
+- 사이드바(`AppSidebar` 또는 데일리 쿼트 컴포넌트)의 명언 영역 교체
+- 단축키: 전역 `M` 키로 리더 열기
+
+## 범위 외 (다음 단계)
+
+- 낭독 streak 통계 / 배지
+- 카드 이미지 다운로드(공유)
+- AI 확언 생성 / 다듬기
+- 모닝 트리거 토스트
+- 루틴과의 자동 연결
+
+승인하시면 마이그레이션부터 시작할게요.
