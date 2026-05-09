@@ -160,20 +160,16 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
                 )}
                 {drafts.map((d, idx) => (
                   <div key={d.tempId} className="flex items-center gap-1.5">
-                    <span className="w-5 text-[10px] font-mono text-muted-foreground text-right">
+                    <span className="w-5 text-[11px] font-mono text-muted-foreground text-right">
                       {idx + 1}
                     </span>
-                    {d.goal_id ? (
-                      <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-                    ) : (
-                      <span className="w-3.5 h-3.5 shrink-0" />
-                    )}
                     <Input
                       value={d.label}
                       onChange={(e) => update(d.tempId, { label: e.target.value })}
                       placeholder="항목 이름"
-                      className="text-[13px] h-8"
+                      className="text-[14px] h-9"
                     />
+                    {d.goal_id && <CategoryBadge goalId={d.goal_id} size="sm" />}
                     <button
                       onClick={() => move(d.tempId, -1)}
                       disabled={idx === 0}
