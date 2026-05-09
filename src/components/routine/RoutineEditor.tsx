@@ -103,7 +103,14 @@ export default function RoutineEditor({ open, onOpenChange }: Props) {
   };
 
   const save = async () => {
-    if (!user || !template) return;
+    if (!user) {
+      toast.error("로그인이 필요해요. 게스트 모드에서는 루틴을 저장할 수 없습니다.");
+      return;
+    }
+    if (!template) {
+      toast.error("루틴 템플릿을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     const cleaned = drafts.filter((d) => d.label.trim().length > 0);
     if (cleaned.length === 0) {
       toast.error("최소 1개 이상의 항목이 필요합니다.");
