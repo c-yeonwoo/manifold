@@ -546,6 +546,7 @@ function GoalNode({
       }}
       className="hover:opacity-90"
     >
+      <title>{goal.title}</title>
       <rect
         x={x}
         y={y}
