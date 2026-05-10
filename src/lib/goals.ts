@@ -270,9 +270,9 @@ export function saveLog(log: GoalLog) {
           user_id: CURRENT_USER_ID,
           goal_id: log.goalId,
           log_date: log.date,
-          checked_action_ids: log.checkedActionIds,
+          checked_action_ids: log.checkedActionIds as any,
           note: log.note,
-        },
+        } as any,
         { onConflict: "user_id,goal_id,log_date" }
       )
       .then(({ error }) => {
