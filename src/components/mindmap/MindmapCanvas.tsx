@@ -277,8 +277,9 @@ export default function MindmapCanvas() {
 
         {/* edges from category to goals */}
         {catNodes.map((n) =>
-          n.goals.map((g, gi) => {
-            const gp = goalPos(n, gi, n.goals.length);
+          n.goals.map((g) => {
+            const gp = goalPositions[g.id];
+            if (!gp) return null;
             return (
               <line
                 key={`ge-${g.id}`}
