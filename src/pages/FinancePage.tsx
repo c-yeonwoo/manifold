@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Trash2, TrendingDown, Share2, Upload, X, Loader2 } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload, X, Loader2, ChevronDown } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 import {
@@ -65,6 +65,7 @@ export default function FinancePage() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(isoDate(now));
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -404,7 +405,62 @@ export default function FinancePage() {
               {filterDate ? "이 날짜에는 지출이 없어요" : "이번 달 지출이 아직 없어요"}
             </p>
           )}
-          {visibleExpenses.map((exp) => {
+          {!loading && !filterDate && visibleExpenses.length > 0 && (
+            <div className="space-y-1">
+              {categoryTotals.map((c) => {
+                const items = monthExpenses
+                  .filter((e) => e.category === c.key)
+                  .sort((a, b) => (a.date < b.date ? 1 : -1));
+                const isOpen = openCategories[c.key] ?? false;
+                return (
+                  <div key={c.key} className="border border-border rounded-md overflow-hidden">
+                    <button
+                      onClick={() => setOpenCategories((s) => ({ ...s, [c.key]: !isOpen }))}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className={`w-2 h-2 rounded-full ${c.color}`} />
+                      <span className="text-[13px] text-foreground flex-1 text-left">{c.key}</span>
+                      <span className="text-[11px] text-muted-foreground">{items.length}건</span>
+                      <span className="text-[13px] font-mono text-foreground">
+                        {c.total.toLocaleString()}원
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-border bg-secondary/20">
+                        {items.map((exp) => (
+                          <div
+                            key={exp.id}
+                            className="flex items-center gap-3 py-2 px-3 hover:bg-secondary/50 transition-colors group"
+                          >
+                            <span className="text-[11px] font-mono text-muted-foreground w-12">
+                              {exp.date.slice(5)}
+                            </span>
+                            <span className="text-[13px] text-foreground flex-1">{exp.name}</span>
+                            <span className="text-[13px] font-mono text-foreground">
+                              {exp.amount.toLocaleString()}원
+                            </span>
+                            <button
+                              onClick={() => removeExpense(exp.id)}
+                              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                              aria-label="삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!loading && filterDate && visibleExpenses.map((exp) => {
             const cat = CATEGORIES.find((c) => c.key === exp.category);
             return (
               <div
