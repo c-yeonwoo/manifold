@@ -66,6 +66,7 @@ export default function FinancePage() {
       const byMonth: Record<string, Expense[]> = {};
       let imported = 0;
       let skipped = 0;
+      const base = Date.now();
       for (const row of data) {
         if (!row || typeof row !== "object") { skipped++; continue; }
         const date = String(row.date ?? "");
@@ -76,7 +77,7 @@ export default function FinancePage() {
         if (!m || !name || !Number.isFinite(amount)) { skipped++; continue; }
         const key = `${m[1]}-${m[2]}`;
         const exp: Expense = {
-          id: String(row.id ?? `${Date.now()}-${imported}`),
+          id: `${base}-${imported}`,
           date,
           category,
           name,
@@ -86,11 +87,10 @@ export default function FinancePage() {
         imported++;
       }
 
-      // merge with existing per-month buckets, dedupe by id
+      // append into existing per-month buckets
       for (const [key, items] of Object.entries(byMonth)) {
         const existing = loadJSON<Expense[]>(`expenses_${key}`, []);
-        const seen = new Set(existing.map((e) => e.id));
-        const merged = [...items.filter((e) => !seen.has(e.id)), ...existing];
+        const merged = [...items, ...existing];
         merged.sort((a, b) => (a.date < b.date ? 1 : -1));
         saveJSON(`expenses_${key}`, merged);
       }
