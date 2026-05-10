@@ -80,7 +80,7 @@ const goalToDbRow = (g: Goal, userId: string) => ({
   vision: g.vision ?? "",
   image_url: g.imageUrl ?? null,
   deadline: g.deadline ?? null,
-  actions: g.actions ?? [],
+  actions: (g.actions ?? []) as any,
   completed_at: g.completedAt ?? null,
 });
 
