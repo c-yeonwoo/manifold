@@ -362,11 +362,6 @@ export default function MindmapCanvas() {
         )}
         </g>
       </svg>
-      <p className="text-center text-[10px] text-muted-foreground mt-1">
-        {focusedKey
-          ? "한 번 더 클릭하면 상세 페이지로 · 빈 공간 클릭 시 닫힘"
-          : "카테고리 클릭 → 포커스 · 한 번 더 클릭 → 상세"}
-      </p>
     </div>
   );
 }
@@ -440,18 +435,6 @@ function CategoryNode({
       >
         {node.goals.length} goals
       </text>
-      {focused && (
-        <text
-          x={node.x}
-          y={node.y + 64}
-          textAnchor="middle"
-          fill="hsl(var(--primary))"
-          fontSize={8}
-          style={{ fontFamily: "var(--mono-font)", letterSpacing: 0.5 }}
-        >
-          ↳ 한 번 더 클릭 → 상세
-        </text>
-      )}
     </g>
   );
 }
