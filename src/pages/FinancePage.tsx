@@ -145,6 +145,79 @@ export default function FinancePage() {
     total: expenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
 
+  // Aggregate full-year daily totals across every monthly bucket
+  const year = now.getFullYear();
+  const dailyTotals = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let m = 1; m <= 12; m++) {
+      const key = `${year}-${String(m).padStart(2, "0")}`;
+      const rows = loadJSON<Expense[]>(`expenses_${key}`, []);
+      for (const e of rows) map[e.date] = (map[e.date] ?? 0) + (e.amount || 0);
+    }
+    return map;
+    // include `expenses` so the current month re-aggregates as user edits, and tick for imports/cross-month adds
+  }, [year, expenses, tick]);
+
+  const days = useMemo(() => getDaysInYear(year), [year]);
+  const maxDaily = useMemo(() => {
+    let m = 0;
+    for (const v of Object.values(dailyTotals)) if (v > m) m = v;
+    return m;
+  }, [dailyTotals]);
+  const yearTotal = useMemo(
+    () => Object.values(dailyTotals).reduce((s, v) => s + v, 0),
+    [dailyTotals]
+  );
+  const recordedDays = useMemo(
+    () => Object.values(dailyTotals).filter((v) => v > 0).length,
+    [dailyTotals]
+  );
+
+  const heatmapWeeks = useMemo(() => {
+    const cells = days.map((d) => {
+      const key = isoDate(d);
+      const amt = dailyTotals[key] ?? 0;
+      const isToday = d.toDateString() === now.toDateString();
+      return { date: d, key, amount: amt, isToday };
+    });
+    const weeks: typeof cells[] = [];
+    let cur: typeof cells = [];
+    const firstDow = days[0].getDay();
+    for (let i = 0; i < firstDow; i++) cur.push({ date: new Date(0), key: "", amount: 0, isToday: false });
+    cells.forEach((c) => {
+      cur.push(c);
+      if (cur.length === 7) { weeks.push(cur); cur = []; }
+    });
+    if (cur.length) {
+      while (cur.length < 7) cur.push({ date: new Date(0), key: "", amount: 0, isToday: false });
+      weeks.push(cur);
+    }
+    return weeks;
+  }, [days, dailyTotals]);
+
+  const monthPositions = useMemo(() => {
+    const pos: { label: string; col: number }[] = [];
+    let lastMonth = -1;
+    heatmapWeeks.forEach((week, wi) => {
+      const valid = week.find((d) => d.date.getFullYear() === year);
+      if (valid && valid.date.getMonth() !== lastMonth) {
+        lastMonth = valid.date.getMonth();
+        pos.push({ label: MONTHS_KO[lastMonth], col: wi });
+      }
+    });
+    return pos;
+  }, [heatmapWeeks, year]);
+
+  // Filtered expenses for list view (when a heatmap day is selected)
+  const visibleExpenses = useMemo(() => {
+    if (!filterDate) return expenses;
+    // if filter is in current month, just filter local; else load from that month bucket
+    if (filterDate.startsWith(monthKey)) return expenses.filter((e) => e.date === filterDate);
+    const month = filterDate.slice(0, 7);
+    const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
+    return rows.filter((e) => e.date === filterDate);
+  }, [filterDate, expenses, monthKey]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addExpense();
   };
