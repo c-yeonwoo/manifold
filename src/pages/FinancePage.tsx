@@ -313,6 +313,12 @@ export default function FinancePage() {
           </div>
           <div className="flex gap-3" onKeyDown={handleKeyDown}>
             <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-secondary rounded-md px-2 py-2 text-sm text-foreground outline-none font-mono"
+            />
+            <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -324,7 +330,7 @@ export default function FinancePage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="금액"
-              className="w-32 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right"
+              className="w-28 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right"
             />
             <button
               onClick={addExpense}
@@ -335,9 +341,26 @@ export default function FinancePage() {
           </div>
         </div>
 
+        {/* Filter chip */}
+        {filterDate && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] bg-primary/10 text-primary border border-primary/20">
+              {filterDate} 만 보기
+              <button onClick={() => setFilterDate(null)} className="hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          </div>
+        )}
+
         {/* Expense list */}
         <div className="space-y-1">
-          {expenses.map((exp) => {
+          {visibleExpenses.length === 0 && (
+            <p className="text-[12px] text-muted-foreground italic px-3 py-4">
+              {filterDate ? "이 날짜에는 지출이 없어요" : "이번 달 지출이 아직 없어요"}
+            </p>
+          )}
+          {visibleExpenses.map((exp) => {
             const cat = CATEGORIES.find((c) => c.key === exp.category);
             return (
               <div
@@ -345,13 +368,23 @@ export default function FinancePage() {
                 className="flex items-center gap-3 py-2.5 px-3 rounded-md hover:bg-secondary/50 transition-colors duration-150 group"
               >
                 <div className={`w-2 h-2 rounded-full ${cat?.color ?? "bg-gray-500"}`} />
-                <span className="text-[12px] text-muted-foreground w-16">{exp.category}</span>
+                <span className="text-[11px] font-mono text-muted-foreground w-12">{exp.date.slice(5)}</span>
+                <span className="text-[12px] text-muted-foreground w-14">{exp.category}</span>
                 <span className="text-[13px] text-foreground flex-1">{exp.name}</span>
                 <span className="text-[13px] font-mono text-foreground">
                   {exp.amount.toLocaleString()}원
                 </span>
                 <button
-                  onClick={() => deleteExpense(exp.id)}
+                  onClick={() => {
+                    if (exp.date.startsWith(monthKey)) {
+                      deleteExpense(exp.id);
+                    } else {
+                      const month = exp.date.slice(0, 7);
+                      const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
+                      saveJSON(`expenses_${month}`, rows.filter((r) => r.id !== exp.id));
+                      setTick((t) => t + 1);
+                    }
+                  }}
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all duration-150"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -359,6 +392,75 @@ export default function FinancePage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Year heatmap */}
+        <div className="mt-8 bg-card rounded-lg border border-border p-5 overflow-x-auto">
+          <div className="flex items-baseline justify-between mb-4">
+            <h3 className="text-[13px] font-medium text-foreground">{year}년 일별 지출</h3>
+            <div className="text-[11px] text-muted-foreground font-mono">
+              {recordedDays}일 · {yearTotal.toLocaleString()}원
+            </div>
+          </div>
+          <div className="flex mb-1 ml-8" style={{ gap: 0 }}>
+            {monthPositions.map((m, i) => {
+              const nextCol = monthPositions[i + 1]?.col ?? heatmapWeeks.length;
+              const width = (nextCol - m.col) * 14;
+              return (
+                <span key={m.label} className="text-[10px] text-muted-foreground" style={{ width, flexShrink: 0 }}>
+                  {m.label}
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex gap-0">
+            <div className="flex flex-col mr-1" style={{ gap: 2 }}>
+              {["일","월","화","수","목","금","토"].map((d, i) => (
+                <span key={d} className="text-[9px] text-muted-foreground h-[12px] leading-[12px]" style={{ visibility: i % 2 === 1 ? "visible" : "hidden" }}>
+                  {d}
+                </span>
+              ))}
+            </div>
+            <div className="flex" style={{ gap: 2 }}>
+              {heatmapWeeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
+                  {week.map((day, di) => {
+                    const valid = day.date.getFullYear() === year;
+                    const selected = filterDate === day.key;
+                    return (
+                      <button
+                        key={di}
+                        disabled={!valid}
+                        onClick={() => {
+                          if (!valid) return;
+                          setFilterDate((cur) => (cur === day.key ? null : day.key));
+                        }}
+                        title={valid ? `${day.date.getMonth()+1}/${day.date.getDate()} — ${day.amount.toLocaleString()}원` : ""}
+                        className={`w-[12px] h-[12px] rounded-[2px] transition-colors duration-150 ${
+                          !valid
+                            ? "bg-secondary/30"
+                            : selected
+                              ? `${spendColor(day.amount, maxDaily)} ring-2 ring-primary`
+                              : day.isToday
+                                ? `${spendColor(day.amount, maxDaily)} ring-1 ring-primary`
+                                : spendColor(day.amount, maxDaily)
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-3 ml-8">
+            <span className="text-[10px] text-muted-foreground mr-1">Less</span>
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-secondary" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_55%_82%)] dark:bg-[hsl(14_40%_28%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_60%_72%)] dark:bg-[hsl(14_50%_38%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_62%_62%)] dark:bg-[hsl(14_60%_50%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(12_70%_50%)] dark:bg-[hsl(14_75%_60%)]" />
+            <span className="text-[10px] text-muted-foreground ml-1">More</span>
+          </div>
         </div>
       </div>
 
