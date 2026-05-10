@@ -1,8 +1,31 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown, Share2, Upload } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload, X } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { toast } from "sonner";
+
+const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function getDaysInYear(year: number) {
+  const days: Date[] = [];
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+  return days;
+}
+
+function spendColor(amount: number, max: number): string {
+  if (amount <= 0) return "bg-secondary";
+  const r = Math.min(1, amount / Math.max(1, max));
+  if (r < 0.2) return "bg-[hsl(14_55%_82%)] dark:bg-[hsl(14_40%_28%)]";
+  if (r < 0.4) return "bg-[hsl(14_60%_72%)] dark:bg-[hsl(14_50%_38%)]";
+  if (r < 0.7) return "bg-[hsl(14_62%_62%)] dark:bg-[hsl(14_60%_50%)]";
+  return "bg-[hsl(12_70%_50%)] dark:bg-[hsl(14_75%_60%)]";
+}
 
 const CATEGORIES = [
   { key: "식비", color: "bg-orange-500" },
@@ -28,6 +51,9 @@ export default function FinancePage() {
   const [category, setCategory] = useState("식비");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(isoDate(now));
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [tick, setTick] = useState(0); // forces year-heatmap recompute after import
 
   useEffect(() => {
     saveJSON(`expenses_${monthKey}`, expenses);
@@ -38,14 +64,23 @@ export default function FinancePage() {
 
   const addExpense = () => {
     if (!name.trim() || !amount) return;
-    const newExp: Expense = {
-      id: Date.now().toString(),
-      date: now.toISOString().slice(0, 10),
+    const targetMonth = date.slice(0, 7);
+    const exp: Expense = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      date,
       category,
       name: name.trim(),
       amount: Number(amount),
     };
-    setExpenses((prev) => [newExp, ...prev]);
+    if (targetMonth === monthKey) {
+      setExpenses((prev) => [exp, ...prev]);
+    } else {
+      const existing = loadJSON<Expense[]>(`expenses_${targetMonth}`, []);
+      const merged = [exp, ...existing].sort((a, b) => (a.date < b.date ? 1 : -1));
+      saveJSON(`expenses_${targetMonth}`, merged);
+      setTick((t) => t + 1);
+      toast.success(`${targetMonth} 에 추가됐어요`);
+    }
     setName("");
     setAmount("");
   };
@@ -97,6 +132,7 @@ export default function FinancePage() {
 
       // refresh current month view
       setExpenses(loadJSON(`expenses_${monthKey}`, []));
+      setTick((t) => t + 1);
 
       toast.success(`${imported}건 가져왔어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
     } catch (err: any) {
@@ -108,6 +144,79 @@ export default function FinancePage() {
     ...c,
     total: expenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
+
+  // Aggregate full-year daily totals across every monthly bucket
+  const year = now.getFullYear();
+  const dailyTotals = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let m = 1; m <= 12; m++) {
+      const key = `${year}-${String(m).padStart(2, "0")}`;
+      const rows = loadJSON<Expense[]>(`expenses_${key}`, []);
+      for (const e of rows) map[e.date] = (map[e.date] ?? 0) + (e.amount || 0);
+    }
+    return map;
+    // include `expenses` so the current month re-aggregates as user edits, and tick for imports/cross-month adds
+  }, [year, expenses, tick]);
+
+  const days = useMemo(() => getDaysInYear(year), [year]);
+  const maxDaily = useMemo(() => {
+    let m = 0;
+    for (const v of Object.values(dailyTotals)) if (v > m) m = v;
+    return m;
+  }, [dailyTotals]);
+  const yearTotal = useMemo(
+    () => Object.values(dailyTotals).reduce((s, v) => s + v, 0),
+    [dailyTotals]
+  );
+  const recordedDays = useMemo(
+    () => Object.values(dailyTotals).filter((v) => v > 0).length,
+    [dailyTotals]
+  );
+
+  const heatmapWeeks = useMemo(() => {
+    const cells = days.map((d) => {
+      const key = isoDate(d);
+      const amt = dailyTotals[key] ?? 0;
+      const isToday = d.toDateString() === now.toDateString();
+      return { date: d, key, amount: amt, isToday };
+    });
+    const weeks: typeof cells[] = [];
+    let cur: typeof cells = [];
+    const firstDow = days[0].getDay();
+    for (let i = 0; i < firstDow; i++) cur.push({ date: new Date(0), key: "", amount: 0, isToday: false });
+    cells.forEach((c) => {
+      cur.push(c);
+      if (cur.length === 7) { weeks.push(cur); cur = []; }
+    });
+    if (cur.length) {
+      while (cur.length < 7) cur.push({ date: new Date(0), key: "", amount: 0, isToday: false });
+      weeks.push(cur);
+    }
+    return weeks;
+  }, [days, dailyTotals]);
+
+  const monthPositions = useMemo(() => {
+    const pos: { label: string; col: number }[] = [];
+    let lastMonth = -1;
+    heatmapWeeks.forEach((week, wi) => {
+      const valid = week.find((d) => d.date.getFullYear() === year);
+      if (valid && valid.date.getMonth() !== lastMonth) {
+        lastMonth = valid.date.getMonth();
+        pos.push({ label: MONTHS_KO[lastMonth], col: wi });
+      }
+    });
+    return pos;
+  }, [heatmapWeeks, year]);
+
+  // Filtered expenses for list view (when a heatmap day is selected)
+  const visibleExpenses = useMemo(() => {
+    if (!filterDate) return expenses;
+    // if filter is in current month, just filter local; else load from that month bucket
+    if (filterDate.startsWith(monthKey)) return expenses.filter((e) => e.date === filterDate);
+    const month = filterDate.slice(0, 7);
+    const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
+    return rows.filter((e) => e.date === filterDate);
+  }, [filterDate, expenses, monthKey]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addExpense();
@@ -204,6 +313,12 @@ export default function FinancePage() {
           </div>
           <div className="flex gap-3" onKeyDown={handleKeyDown}>
             <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-secondary rounded-md px-2 py-2 text-sm text-foreground outline-none font-mono"
+            />
+            <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -215,7 +330,7 @@ export default function FinancePage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="금액"
-              className="w-32 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right"
+              className="w-28 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right"
             />
             <button
               onClick={addExpense}
@@ -226,9 +341,26 @@ export default function FinancePage() {
           </div>
         </div>
 
+        {/* Filter chip */}
+        {filterDate && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] bg-primary/10 text-primary border border-primary/20">
+              {filterDate} 만 보기
+              <button onClick={() => setFilterDate(null)} className="hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          </div>
+        )}
+
         {/* Expense list */}
         <div className="space-y-1">
-          {expenses.map((exp) => {
+          {visibleExpenses.length === 0 && (
+            <p className="text-[12px] text-muted-foreground italic px-3 py-4">
+              {filterDate ? "이 날짜에는 지출이 없어요" : "이번 달 지출이 아직 없어요"}
+            </p>
+          )}
+          {visibleExpenses.map((exp) => {
             const cat = CATEGORIES.find((c) => c.key === exp.category);
             return (
               <div
@@ -236,13 +368,23 @@ export default function FinancePage() {
                 className="flex items-center gap-3 py-2.5 px-3 rounded-md hover:bg-secondary/50 transition-colors duration-150 group"
               >
                 <div className={`w-2 h-2 rounded-full ${cat?.color ?? "bg-gray-500"}`} />
-                <span className="text-[12px] text-muted-foreground w-16">{exp.category}</span>
+                <span className="text-[11px] font-mono text-muted-foreground w-12">{exp.date.slice(5)}</span>
+                <span className="text-[12px] text-muted-foreground w-14">{exp.category}</span>
                 <span className="text-[13px] text-foreground flex-1">{exp.name}</span>
                 <span className="text-[13px] font-mono text-foreground">
                   {exp.amount.toLocaleString()}원
                 </span>
                 <button
-                  onClick={() => deleteExpense(exp.id)}
+                  onClick={() => {
+                    if (exp.date.startsWith(monthKey)) {
+                      deleteExpense(exp.id);
+                    } else {
+                      const month = exp.date.slice(0, 7);
+                      const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
+                      saveJSON(`expenses_${month}`, rows.filter((r) => r.id !== exp.id));
+                      setTick((t) => t + 1);
+                    }
+                  }}
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all duration-150"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -250,6 +392,75 @@ export default function FinancePage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Year heatmap */}
+        <div className="mt-8 bg-card rounded-lg border border-border p-5 overflow-x-auto">
+          <div className="flex items-baseline justify-between mb-4">
+            <h3 className="text-[13px] font-medium text-foreground">{year}년 일별 지출</h3>
+            <div className="text-[11px] text-muted-foreground font-mono">
+              {recordedDays}일 · {yearTotal.toLocaleString()}원
+            </div>
+          </div>
+          <div className="flex mb-1 ml-8" style={{ gap: 0 }}>
+            {monthPositions.map((m, i) => {
+              const nextCol = monthPositions[i + 1]?.col ?? heatmapWeeks.length;
+              const width = (nextCol - m.col) * 14;
+              return (
+                <span key={m.label} className="text-[10px] text-muted-foreground" style={{ width, flexShrink: 0 }}>
+                  {m.label}
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex gap-0">
+            <div className="flex flex-col mr-1" style={{ gap: 2 }}>
+              {["일","월","화","수","목","금","토"].map((d, i) => (
+                <span key={d} className="text-[9px] text-muted-foreground h-[12px] leading-[12px]" style={{ visibility: i % 2 === 1 ? "visible" : "hidden" }}>
+                  {d}
+                </span>
+              ))}
+            </div>
+            <div className="flex" style={{ gap: 2 }}>
+              {heatmapWeeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
+                  {week.map((day, di) => {
+                    const valid = day.date.getFullYear() === year;
+                    const selected = filterDate === day.key;
+                    return (
+                      <button
+                        key={di}
+                        disabled={!valid}
+                        onClick={() => {
+                          if (!valid) return;
+                          setFilterDate((cur) => (cur === day.key ? null : day.key));
+                        }}
+                        title={valid ? `${day.date.getMonth()+1}/${day.date.getDate()} — ${day.amount.toLocaleString()}원` : ""}
+                        className={`w-[12px] h-[12px] rounded-[2px] transition-colors duration-150 ${
+                          !valid
+                            ? "bg-secondary/30"
+                            : selected
+                              ? `${spendColor(day.amount, maxDaily)} ring-2 ring-primary`
+                              : day.isToday
+                                ? `${spendColor(day.amount, maxDaily)} ring-1 ring-primary`
+                                : spendColor(day.amount, maxDaily)
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-3 ml-8">
+            <span className="text-[10px] text-muted-foreground mr-1">Less</span>
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-secondary" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_55%_82%)] dark:bg-[hsl(14_40%_28%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_60%_72%)] dark:bg-[hsl(14_50%_38%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(14_62%_62%)] dark:bg-[hsl(14_60%_50%)]" />
+            <div className="w-[12px] h-[12px] rounded-[2px] bg-[hsl(12_70%_50%)] dark:bg-[hsl(14_75%_60%)]" />
+            <span className="text-[10px] text-muted-foreground ml-1">More</span>
+          </div>
         </div>
       </div>
 
