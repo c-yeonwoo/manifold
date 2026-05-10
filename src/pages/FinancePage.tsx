@@ -1,8 +1,31 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown, Share2, Upload } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload, X } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { toast } from "sonner";
+
+const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function getDaysInYear(year: number) {
+  const days: Date[] = [];
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+  return days;
+}
+
+function spendColor(amount: number, max: number): string {
+  if (amount <= 0) return "bg-secondary";
+  const r = Math.min(1, amount / Math.max(1, max));
+  if (r < 0.2) return "bg-[hsl(14_55%_82%)] dark:bg-[hsl(14_40%_28%)]";
+  if (r < 0.4) return "bg-[hsl(14_60%_72%)] dark:bg-[hsl(14_50%_38%)]";
+  if (r < 0.7) return "bg-[hsl(14_62%_62%)] dark:bg-[hsl(14_60%_50%)]";
+  return "bg-[hsl(12_70%_50%)] dark:bg-[hsl(14_75%_60%)]";
+}
 
 const CATEGORIES = [
   { key: "식비", color: "bg-orange-500" },
