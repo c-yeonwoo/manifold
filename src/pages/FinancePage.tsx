@@ -1,7 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown, Share2, Upload, X } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Trash2, TrendingDown, Share2, Upload, X, Loader2 } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
+import { useAuth } from "@/lib/auth";
+import {
+  listExpensesByMonth,
+  listExpensesByYear,
+  createExpense,
+  bulkCreateExpenses,
+  deleteExpense as deleteExpenseDb,
+  notifyExpensesChanged,
+  type Expense,
+} from "@/lib/expenses";
 import { toast } from "sonner";
 
 const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -42,121 +51,146 @@ const CATEGORIES = [
 const BUDGET = 2000000; // 200만원
 
 export default function FinancePage() {
+  const { user } = useAuth();
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const year = now.getFullYear();
 
-  const [expenses, setExpenses] = useState<Expense[]>(() =>
-    loadJSON(`expenses_${monthKey}`, [])
-  );
+  const [monthExpenses, setMonthExpenses] = useState<Expense[]>([]);
+  const [yearExpenses, setYearExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("식비");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(isoDate(now));
   const [filterDate, setFilterDate] = useState<string | null>(null);
-  const [tick, setTick] = useState(0); // forces year-heatmap recompute after import
+
+  const refresh = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [m, y] = await Promise.all([
+        listExpensesByMonth(user.id, monthKey),
+        listExpensesByYear(user.id, year),
+      ]);
+      setMonthExpenses(m);
+      setYearExpenses(y);
+    } catch (e: any) {
+      toast.error(e.message ?? "지출을 불러오지 못했어요");
+    } finally {
+      setLoading(false);
+    }
+  }, [user, monthKey, year]);
 
   useEffect(() => {
-    saveJSON(`expenses_${monthKey}`, expenses);
-  }, [expenses, monthKey]);
+    refresh();
+  }, [refresh]);
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const total = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const budgetPct = Math.min((total / BUDGET) * 100, 100);
 
-  const addExpense = () => {
-    if (!name.trim() || !amount) return;
-    const targetMonth = date.slice(0, 7);
-    const exp: Expense = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      date,
-      category,
-      name: name.trim(),
-      amount: Number(amount),
-    };
-    if (targetMonth === monthKey) {
-      setExpenses((prev) => [exp, ...prev]);
-    } else {
-      const existing = loadJSON<Expense[]>(`expenses_${targetMonth}`, []);
-      const merged = [exp, ...existing].sort((a, b) => (a.date < b.date ? 1 : -1));
-      saveJSON(`expenses_${targetMonth}`, merged);
-      setTick((t) => t + 1);
-      toast.success(`${targetMonth} 에 추가됐어요`);
+  const addExpense = async () => {
+    if (!user || !name.trim() || !amount) return;
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt < 0) {
+      toast.error("올바른 금액을 입력해주세요");
+      return;
     }
-    setName("");
-    setAmount("");
+    setBusy(true);
+    try {
+      await createExpense({
+        user_id: user.id,
+        date,
+        category,
+        name: name.trim(),
+        amount: amt,
+      });
+      setName("");
+      setAmount("");
+      const targetMonth = date.slice(0, 7);
+      if (targetMonth !== monthKey) {
+        toast.success(`${targetMonth} 에 추가됐어요`);
+      }
+      notifyExpensesChanged();
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "추가 실패");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  const removeExpense = async (id: string) => {
+    try {
+      await deleteExpenseDb(id);
+      notifyExpensesChanged();
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "삭제 실패");
+    }
   };
 
   const fileRef = useRef<HTMLInputElement>(null);
 
   const importJSON = async (file: File) => {
+    if (!user) return;
     try {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!Array.isArray(data)) throw new Error("배열 형태의 JSON이 아닙니다");
 
-      // group by YYYY-MM
-      const byMonth: Record<string, Expense[]> = {};
-      let imported = 0;
+      const rows: Array<{
+        user_id: string;
+        date: string;
+        category: string;
+        name: string;
+        amount: number;
+      }> = [];
       let skipped = 0;
-      const base = Date.now();
       for (const row of data) {
         if (!row || typeof row !== "object") { skipped++; continue; }
-        const date = String(row.date ?? "");
-        const m = /^(\d{4})-(\d{2})/.exec(date);
-        const name = String(row.name ?? "").trim();
-        const category = String(row.category ?? "기타");
-        const amount = Number(row.amount);
-        if (!m || !name || !Number.isFinite(amount)) { skipped++; continue; }
-        const key = `${m[1]}-${m[2]}`;
-        const exp: Expense = {
-          id: `${base}-${imported}`,
-          date,
-          category,
-          name,
-          amount,
-        };
-        (byMonth[key] ||= []).push(exp);
-        imported++;
+        const d = String(row.date ?? "");
+        const m = /^\d{4}-\d{2}-\d{2}/.exec(d);
+        const nm = String(row.name ?? "").trim();
+        const cat = String(row.category ?? "기타");
+        const amt = Number(row.amount);
+        if (!m || !nm || !Number.isFinite(amt) || amt < 0) { skipped++; continue; }
+        rows.push({
+          user_id: user.id,
+          date: d.slice(0, 10),
+          category: cat,
+          name: nm,
+          amount: amt,
+        });
       }
-
-      // append into existing per-month buckets
-      for (const [key, items] of Object.entries(byMonth)) {
-        const existing = loadJSON<Expense[]>(`expenses_${key}`, []);
-        const merged = [...items, ...existing];
-        merged.sort((a, b) => (a.date < b.date ? 1 : -1));
-        saveJSON(`expenses_${key}`, merged);
+      if (!rows.length) {
+        toast.error(`가져올 항목이 없어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
+        return;
       }
-
-      // refresh current month view
-      setExpenses(loadJSON(`expenses_${monthKey}`, []));
-      setTick((t) => t + 1);
-
-      toast.success(`${imported}건 가져왔어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
+      setBusy(true);
+      const inserted = await bulkCreateExpenses(rows);
+      notifyExpensesChanged();
+      await refresh();
+      toast.success(`${inserted}건 가져왔어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
     } catch (err: any) {
       toast.error(err?.message ?? "JSON 파싱 실패");
+    } finally {
+      setBusy(false);
     }
   };
 
   const categoryTotals = CATEGORIES.map((c) => ({
     ...c,
-    total: expenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
+    total: monthExpenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
 
-  // Aggregate full-year daily totals across every monthly bucket
-  const year = now.getFullYear();
+  // Daily totals across the entire year (from yearExpenses)
   const dailyTotals = useMemo(() => {
     const map: Record<string, number> = {};
-    for (let m = 1; m <= 12; m++) {
-      const key = `${year}-${String(m).padStart(2, "0")}`;
-      const rows = loadJSON<Expense[]>(`expenses_${key}`, []);
-      for (const e of rows) map[e.date] = (map[e.date] ?? 0) + (e.amount || 0);
-    }
+    for (const e of yearExpenses) map[e.date] = (map[e.date] ?? 0) + e.amount;
     return map;
-    // include `expenses` so the current month re-aggregates as user edits, and tick for imports/cross-month adds
-  }, [year, expenses, tick]);
+  }, [yearExpenses]);
 
   const days = useMemo(() => getDaysInYear(year), [year]);
   const maxDaily = useMemo(() => {
@@ -193,6 +227,7 @@ export default function FinancePage() {
       weeks.push(cur);
     }
     return weeks;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, dailyTotals]);
 
   const monthPositions = useMemo(() => {
@@ -210,13 +245,11 @@ export default function FinancePage() {
 
   // Filtered expenses for list view (when a heatmap day is selected)
   const visibleExpenses = useMemo(() => {
-    if (!filterDate) return expenses;
-    // if filter is in current month, just filter local; else load from that month bucket
-    if (filterDate.startsWith(monthKey)) return expenses.filter((e) => e.date === filterDate);
-    const month = filterDate.slice(0, 7);
-    const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
-    return rows.filter((e) => e.date === filterDate);
-  }, [filterDate, expenses, monthKey]);
+    if (!filterDate) return monthExpenses;
+    const inMonth = filterDate.startsWith(monthKey);
+    const source = inMonth ? monthExpenses : yearExpenses;
+    return source.filter((e) => e.date === filterDate);
+  }, [filterDate, monthExpenses, yearExpenses, monthKey]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addExpense();
@@ -226,8 +259,8 @@ export default function FinancePage() {
     <div className="flex gap-6 animate-fade-up">
       <div className="flex-1 max-w-2xl">
         {/* Month header */}
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div className="flex-1">
+        <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
             <h2 className="text-lg font-medium text-foreground mb-1">
               {now.getFullYear()}년 {now.getMonth() + 1}월
             </h2>
@@ -249,49 +282,52 @@ export default function FinancePage() {
               />
             </div>
           </div>
-          <button
-            onClick={async () => {
-              if (!expenses.length) {
-                toast.error("이번 달 지출이 아직 없어요");
-                return;
-              }
-              const totals: Record<string, number> = {};
-              expenses.forEach((e) => {
-                totals[e.category] = (totals[e.category] ?? 0) + e.amount;
-              });
-              try {
-                await shareFinanceSummary({
-                  year: now.getFullYear(),
-                  month: now.getMonth() + 1,
-                  totals,
+          <div className="flex gap-2 self-start">
+            <button
+              onClick={async () => {
+                if (!monthExpenses.length) {
+                  toast.error("이번 달 지출이 아직 없어요");
+                  return;
+                }
+                const totals: Record<string, number> = {};
+                monthExpenses.forEach((e) => {
+                  totals[e.category] = (totals[e.category] ?? 0) + e.amount;
                 });
-                toast.success("이번 달 지출 요약이 공유됐어요");
-              } catch (e: any) {
-                toast.error(e.message ?? "공유 실패");
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            <Share2 className="w-3.5 h-3.5" /> 이달 공유
-          </button>
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
-            title="JSON 파일에서 지출 가져오기"
-          >
-            <Upload className="w-3.5 h-3.5" /> JSON 가져오기
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) importJSON(f);
-              e.target.value = "";
-            }}
-          />
+                try {
+                  await shareFinanceSummary({
+                    year: now.getFullYear(),
+                    month: now.getMonth() + 1,
+                    totals,
+                  });
+                  toast.success("이번 달 지출 요약이 공유됐어요");
+                } catch (e: any) {
+                  toast.error(e.message ?? "공유 실패");
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5" /> 이달 공유
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50"
+              disabled={busy}
+              title="JSON 파일에서 지출 가져오기"
+            >
+              <Upload className="w-3.5 h-3.5" /> JSON 가져오기
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importJSON(f);
+                e.target.value = "";
+              }}
+            />
+          </div>
         </div>
 
         {/* Input */}
@@ -322,11 +358,12 @@ export default function FinancePage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="지출 내역"
+              placeholder="지출 내역 (Cmd+Enter)"
               className="flex-1 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               type="number"
+              inputMode="numeric"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="금액"
@@ -334,8 +371,10 @@ export default function FinancePage() {
             />
             <button
               onClick={addExpense}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all duration-150 active:scale-[0.97]"
+              disabled={busy || !name.trim() || !amount}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all duration-150 active:scale-[0.97] disabled:opacity-50 inline-flex items-center gap-1.5"
             >
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               추가
             </button>
           </div>
@@ -355,7 +394,12 @@ export default function FinancePage() {
 
         {/* Expense list */}
         <div className="space-y-1">
-          {visibleExpenses.length === 0 && (
+          {loading && (
+            <p className="text-[12px] text-muted-foreground italic px-3 py-4 inline-flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> 불러오는 중…
+            </p>
+          )}
+          {!loading && visibleExpenses.length === 0 && (
             <p className="text-[12px] text-muted-foreground italic px-3 py-4">
               {filterDate ? "이 날짜에는 지출이 없어요" : "이번 달 지출이 아직 없어요"}
             </p>
@@ -375,17 +419,9 @@ export default function FinancePage() {
                   {exp.amount.toLocaleString()}원
                 </span>
                 <button
-                  onClick={() => {
-                    if (exp.date.startsWith(monthKey)) {
-                      deleteExpense(exp.id);
-                    } else {
-                      const month = exp.date.slice(0, 7);
-                      const rows = loadJSON<Expense[]>(`expenses_${month}`, []);
-                      saveJSON(`expenses_${month}`, rows.filter((r) => r.id !== exp.id));
-                      setTick((t) => t + 1);
-                    }
-                  }}
+                  onClick={() => removeExpense(exp.id)}
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all duration-150"
+                  aria-label="삭제"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -465,13 +501,16 @@ export default function FinancePage() {
       </div>
 
       {/* Right sidebar */}
-      <div className="w-64 space-y-4 stagger-children">
+      <div className="w-64 space-y-4 stagger-children shrink-0">
         {/* Category breakdown */}
         <div className="bg-card rounded-lg border border-border p-4">
           <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
             카테고리별 지출
           </span>
           <div className="mt-3 space-y-2">
+            {categoryTotals.length === 0 && (
+              <p className="text-[11px] text-muted-foreground italic">아직 데이터가 없어요</p>
+            )}
             {categoryTotals.map((c) => {
               const pct = total > 0 ? (c.total / total) * 100 : 0;
               return (
@@ -494,7 +533,7 @@ export default function FinancePage() {
           </div>
         </div>
 
-        {/* AI analysis */}
+        {/* AI analysis placeholder */}
         <div className="bg-card rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-3.5 h-3.5 text-primary" />
@@ -503,7 +542,7 @@ export default function FinancePage() {
             </span>
           </div>
           <p className="text-[12px] text-muted-foreground leading-relaxed">
-            지출을 기록하면 AI가 소비 패턴을 분석하고 절약 팁을 제공합니다.
+            지출을 기록하면 AI가 소비 패턴을 분석하고 절약 팁을 제공합니다. (준비 중)
           </p>
         </div>
       </div>
