@@ -461,12 +461,11 @@ function GoalNode({
   const pct = total ? done / total : 0;
   const max = 14;
   const title = goal.title.length > max ? goal.title.slice(0, max) + "…" : goal.title;
-  // approximate width: ~9px per CJK/char + horizontal padding
   const charW = 9;
-  const padX = 12;
-  const w = Math.max(64, Math.min(160, title.length * charW + padX * 2));
-  const h = 26;
-  const rx = 13;
+  const padX = 14;
+  const w = Math.max(72, Math.min(170, title.length * charW + padX * 2));
+  const h = 36;
+  const rx = 12;
   const x = cx - w / 2;
   const y = cy - h / 2;
   const barH = 3;
@@ -491,25 +490,6 @@ function GoalNode({
         stroke={`hsl(${hue} 50% 50%)`}
         strokeWidth={1.25}
       />
-      {/* progress bar at bottom inside pill */}
-      <rect
-        x={x + 8}
-        y={y + h - barH - 4}
-        width={w - 16}
-        height={barH}
-        rx={barH / 2}
-        ry={barH / 2}
-        fill={`hsl(${hue} 30% 30% / 0.2)`}
-      />
-      <rect
-        x={x + 8}
-        y={y + h - barH - 4}
-        width={(w - 16) * pct}
-        height={barH}
-        rx={barH / 2}
-        ry={barH / 2}
-        fill={`hsl(${hue} 60% 55%)`}
-      />
       {/* title */}
       <text
         x={cx}
@@ -522,17 +502,37 @@ function GoalNode({
       >
         {title}
       </text>
-      {/* count subtitle below pill */}
+      {/* count inside pill */}
       <text
         x={cx}
-        y={y + h + 11}
+        y={y + 24}
         textAnchor="middle"
+        dominantBaseline="middle"
         fontSize={9}
         fill="hsl(var(--muted-foreground))"
         style={{ fontFamily: "var(--mono-font)" }}
       >
         {done}/{total}
       </text>
+      {/* progress bar at bottom inside pill */}
+      <rect
+        x={x + 10}
+        y={y + h - barH - 4}
+        width={w - 20}
+        height={barH}
+        rx={barH / 2}
+        ry={barH / 2}
+        fill={`hsl(${hue} 30% 30% / 0.2)`}
+      />
+      <rect
+        x={x + 10}
+        y={y + h - barH - 4}
+        width={(w - 20) * pct}
+        height={barH}
+        rx={barH / 2}
+        ry={barH / 2}
+        fill={`hsl(${hue} 60% 55%)`}
+      />
     </g>
   );
 }
