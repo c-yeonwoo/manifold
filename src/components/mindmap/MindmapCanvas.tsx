@@ -207,6 +207,9 @@ export default function MindmapCanvas() {
     };
   });
 
+  // Compute non-overlapping goal positions
+  const goalPositions = layoutGoals(catNodes);
+
   return (
     <div className="w-full relative">
       {/* zoom controls */}
