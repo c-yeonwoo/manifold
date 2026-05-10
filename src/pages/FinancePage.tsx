@@ -132,6 +132,7 @@ export default function FinancePage() {
 
       // refresh current month view
       setExpenses(loadJSON(`expenses_${monthKey}`, []));
+      setTick((t) => t + 1);
 
       toast.success(`${imported}건 가져왔어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
     } catch (err: any) {
