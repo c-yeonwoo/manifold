@@ -21,7 +21,7 @@ function useTick() {
       window.addEventListener("goals-updated", h);
       return () => window.removeEventListener("goals-updated", h);
     },
-    () => localStorage.getItem("goals_v1") ?? ""
+    () => Date.now().toString()
   );
 }
 
