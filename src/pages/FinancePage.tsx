@@ -165,6 +165,24 @@ export default function FinancePage() {
           >
             <Share2 className="w-3.5 h-3.5" /> 이달 공유
           </button>
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+            title="JSON 파일에서 지출 가져오기"
+          >
+            <Upload className="w-3.5 h-3.5" /> JSON 가져오기
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJSON(f);
+              e.target.value = "";
+            }}
+          />
         </div>
 
         {/* Input */}
