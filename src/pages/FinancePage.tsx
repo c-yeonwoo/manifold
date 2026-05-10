@@ -51,6 +51,9 @@ export default function FinancePage() {
   const [category, setCategory] = useState("식비");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(isoDate(now));
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [tick, setTick] = useState(0); // forces year-heatmap recompute after import
 
   useEffect(() => {
     saveJSON(`expenses_${monthKey}`, expenses);
@@ -61,14 +64,23 @@ export default function FinancePage() {
 
   const addExpense = () => {
     if (!name.trim() || !amount) return;
-    const newExp: Expense = {
-      id: Date.now().toString(),
-      date: now.toISOString().slice(0, 10),
+    const targetMonth = date.slice(0, 7);
+    const exp: Expense = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      date,
       category,
       name: name.trim(),
       amount: Number(amount),
     };
-    setExpenses((prev) => [newExp, ...prev]);
+    if (targetMonth === monthKey) {
+      setExpenses((prev) => [exp, ...prev]);
+    } else {
+      const existing = loadJSON<Expense[]>(`expenses_${targetMonth}`, []);
+      const merged = [exp, ...existing].sort((a, b) => (a.date < b.date ? 1 : -1));
+      saveJSON(`expenses_${targetMonth}`, merged);
+      setTick((t) => t + 1);
+      toast.success(`${targetMonth} 에 추가됐어요`);
+    }
     setName("");
     setAmount("");
   };
