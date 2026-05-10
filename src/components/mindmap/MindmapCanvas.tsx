@@ -22,8 +22,8 @@ const W = 960;
 const H = 640;
 const CX = W / 2;
 const CY = H / 2;
-const CAT_R = 230;
-const GOAL_R = 140;
+const CAT_R = 184;
+const GOAL_R = 112;
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 3;
