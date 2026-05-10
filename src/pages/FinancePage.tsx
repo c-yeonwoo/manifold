@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown, Share2 } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { toast } from "sonner";
 
