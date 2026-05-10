@@ -207,6 +207,9 @@ export default function MindmapCanvas() {
     };
   });
 
+  // Compute non-overlapping goal positions
+  const goalPositions = layoutGoals(catNodes);
+
   return (
     <div className="w-full relative">
       {/* zoom controls */}
@@ -274,8 +277,9 @@ export default function MindmapCanvas() {
 
         {/* edges from category to goals */}
         {catNodes.map((n) =>
-          n.goals.map((g, gi) => {
-            const gp = goalPos(n, gi, n.goals.length);
+          n.goals.map((g) => {
+            const gp = goalPositions[g.id];
+            if (!gp) return null;
             return (
               <line
                 key={`ge-${g.id}`}
@@ -341,8 +345,9 @@ export default function MindmapCanvas() {
 
         {/* goal nodes */}
         {catNodes.map((n) =>
-          n.goals.map((g, gi) => {
-            const gp = goalPos(n, gi, n.goals.length);
+          n.goals.map((g) => {
+            const gp = goalPositions[g.id];
+            if (!gp) return null;
             const p = todayProgress(g);
             const dimmed = focusedKey != null && focusedKey !== n.key;
             return (
@@ -366,13 +371,75 @@ export default function MindmapCanvas() {
   );
 }
 
-function goalPos(n: { x: number; y: number; angle: number }, gi: number, total: number) {
-  const spread = total === 1 ? 0 : (gi - (total - 1) / 2) * 0.5;
-  const a = n.angle + spread;
-  return {
-    x: n.x + GOAL_R * Math.cos(a),
-    y: n.y + GOAL_R * Math.sin(a),
+type CatNodeLite = { key: CategoryKey; x: number; y: number; angle: number; goals: Goal[] };
+
+function layoutGoals(catNodes: CatNodeLite[]): Record<string, { x: number; y: number }> {
+  const NODE_W = 174;
+  const NODE_H = 44;
+  const PAD = 6;
+
+  type Item = { id: string; cx: number; cy: number; w: number; h: number };
+  const items: Item[] = [];
+
+  catNodes.forEach((n) => {
+    const total = n.goals.length;
+    n.goals.forEach((g, gi) => {
+      const spread = total === 1 ? 0 : (gi - (total - 1) / 2) * 0.55;
+      const a = n.angle + spread;
+      const r = GOAL_R + Math.floor(gi / 4) * 56;
+      items.push({
+        id: g.id,
+        cx: n.x + r * Math.cos(a),
+        cy: n.y + r * Math.sin(a),
+        w: NODE_W,
+        h: NODE_H,
+      });
+    });
+  });
+
+  // fixed obstacles: center + categories (rough bounding boxes)
+  const fixed: Item[] = [
+    { id: "_center", cx: CX, cy: CY, w: 96, h: 96 },
+    ...catNodes.map((n) => ({ id: `_cat-${n.key}`, cx: n.x, cy: n.y, w: 76, h: 76 })),
+  ];
+
+  const resolvePair = (a: Item, b: Item, moveA: boolean, moveB: boolean) => {
+    const dx = b.cx - a.cx;
+    const dy = b.cy - a.cy;
+    const ox = (a.w + b.w) / 2 + PAD - Math.abs(dx);
+    const oy = (a.h + b.h) / 2 + PAD - Math.abs(dy);
+    if (ox <= 0 || oy <= 0) return false;
+    const share = moveA && moveB ? 0.5 : 1;
+    if (ox < oy) {
+      const s = dx >= 0 ? 1 : -1;
+      const push = ox * share;
+      if (moveA) a.cx -= s * push;
+      if (moveB) b.cx += s * push;
+    } else {
+      const s = dy >= 0 ? 1 : -1;
+      const push = oy * share;
+      if (moveA) a.cy -= s * push;
+      if (moveB) b.cy += s * push;
+    }
+    return true;
   };
+
+  for (let iter = 0; iter < 200; iter++) {
+    let moved = false;
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        if (resolvePair(items[i], items[j], true, true)) moved = true;
+      }
+      for (const f of fixed) {
+        if (resolvePair(f, items[i], false, true)) moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  const map: Record<string, { x: number; y: number }> = {};
+  for (const it of items) map[it.id] = { x: it.cx, y: it.cy };
+  return map;
 }
 
 function CategoryNode({
