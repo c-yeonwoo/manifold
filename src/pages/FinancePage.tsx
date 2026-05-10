@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { loadJSON, saveJSON, type Expense } from "@/lib/store";
-import { Trash2, TrendingDown, Share2 } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { toast } from "sonner";
 
@@ -52,6 +52,56 @@ export default function FinancePage() {
 
   const deleteExpense = (id: string) => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const importJSON = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) throw new Error("배열 형태의 JSON이 아닙니다");
+
+      // group by YYYY-MM
+      const byMonth: Record<string, Expense[]> = {};
+      let imported = 0;
+      let skipped = 0;
+      for (const row of data) {
+        if (!row || typeof row !== "object") { skipped++; continue; }
+        const date = String(row.date ?? "");
+        const m = /^(\d{4})-(\d{2})/.exec(date);
+        const name = String(row.name ?? "").trim();
+        const category = String(row.category ?? "기타");
+        const amount = Number(row.amount);
+        if (!m || !name || !Number.isFinite(amount)) { skipped++; continue; }
+        const key = `${m[1]}-${m[2]}`;
+        const exp: Expense = {
+          id: String(row.id ?? `${Date.now()}-${imported}`),
+          date,
+          category,
+          name,
+          amount,
+        };
+        (byMonth[key] ||= []).push(exp);
+        imported++;
+      }
+
+      // merge with existing per-month buckets, dedupe by id
+      for (const [key, items] of Object.entries(byMonth)) {
+        const existing = loadJSON<Expense[]>(`expenses_${key}`, []);
+        const seen = new Set(existing.map((e) => e.id));
+        const merged = [...items.filter((e) => !seen.has(e.id)), ...existing];
+        merged.sort((a, b) => (a.date < b.date ? 1 : -1));
+        saveJSON(`expenses_${key}`, merged);
+      }
+
+      // refresh current month view
+      setExpenses(loadJSON(`expenses_${monthKey}`, []));
+
+      toast.success(`${imported}건 가져왔어요${skipped ? ` (건너뜀 ${skipped})` : ""}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "JSON 파싱 실패");
+    }
   };
 
   const categoryTotals = CATEGORIES.map((c) => ({
@@ -115,6 +165,24 @@ export default function FinancePage() {
           >
             <Share2 className="w-3.5 h-3.5" /> 이달 공유
           </button>
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+            title="JSON 파일에서 지출 가져오기"
+          >
+            <Upload className="w-3.5 h-3.5" /> JSON 가져오기
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJSON(f);
+              e.target.value = "";
+            }}
+          />
         </div>
 
         {/* Input */}
