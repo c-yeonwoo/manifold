@@ -296,7 +296,7 @@ export default function MindmapCanvas() {
           <circle
             cx={CX}
             cy={CY}
-            r={56}
+            r={42}
             fill="hsl(var(--card))"
             stroke="hsl(var(--primary))"
             strokeWidth={2}
@@ -304,11 +304,11 @@ export default function MindmapCanvas() {
           />
           <text
             x={CX}
-            y={CY + 2}
+            y={CY + 1}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="hsl(var(--primary))"
-            fontSize={28}
+            fontSize={22}
             fontWeight={500}
             style={{ fontFamily: "var(--body-font)" }}
           >
@@ -316,10 +316,10 @@ export default function MindmapCanvas() {
           </text>
           <text
             x={CX}
-            y={CY + 28}
+            y={CY + 22}
             textAnchor="middle"
             fill="hsl(var(--muted-foreground))"
-            fontSize={9}
+            fontSize={8}
             style={{ fontFamily: "var(--mono-font)", letterSpacing: 1 }}
           >
             I AM
@@ -362,11 +362,6 @@ export default function MindmapCanvas() {
         )}
         </g>
       </svg>
-      <p className="text-center text-[10px] text-muted-foreground mt-1">
-        {focusedKey
-          ? "한 번 더 클릭하면 상세 페이지로 · 빈 공간 클릭 시 닫힘"
-          : "카테고리 클릭 → 포커스 · 한 번 더 클릭 → 상세"}
-      </p>
     </div>
   );
 }
@@ -413,7 +408,7 @@ function CategoryNode({
       <circle
         cx={node.x}
         cy={node.y}
-        r={42}
+        r={32}
         fill={fill}
         stroke={stroke}
         strokeWidth={focused ? 2.5 : 1.5}
@@ -425,7 +420,7 @@ function CategoryNode({
         textAnchor="middle"
         dominantBaseline="middle"
         fill={labelColor}
-        fontSize={14}
+        fontSize={12}
         fontWeight={500}
         style={{ fontFamily: "var(--mono-font)" }}
       >
@@ -433,25 +428,13 @@ function CategoryNode({
       </text>
       <text
         x={node.x}
-        y={node.y + 16}
+        y={node.y + 12}
         textAnchor="middle"
         fill="hsl(var(--muted-foreground))"
-        fontSize={9}
+        fontSize={8}
       >
         {node.goals.length} goals
       </text>
-      {focused && (
-        <text
-          x={node.x}
-          y={node.y + 64}
-          textAnchor="middle"
-          fill="hsl(var(--primary))"
-          fontSize={8}
-          style={{ fontFamily: "var(--mono-font)", letterSpacing: 0.5 }}
-        >
-          ↳ 한 번 더 클릭 → 상세
-        </text>
-      )}
     </g>
   );
 }
@@ -476,7 +459,7 @@ function GoalNode({
   onClick: () => void;
 }) {
   const pct = total ? done / total : 0;
-  const r = 30;
+  const r = 22;
   const c = 2 * Math.PI * r;
   // wrap title into up to 2 lines (~6 chars each)
   const max = 12;

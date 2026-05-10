@@ -65,7 +65,6 @@ export default function GoalForm({ open, onOpenChange, category, initial }: Prop
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 체지방 12%"
               autoFocus
             />
           </div>
