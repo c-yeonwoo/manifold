@@ -14,9 +14,13 @@ export default function TopNav() {
   const { pathname } = useLocation();
   return (
     <nav className="h-12 border-b border-border bg-card flex items-center px-6 gap-1 shrink-0">
-      <span className="font-mono text-primary font-medium tracking-tight mr-6 text-sm">
-        IAM
-      </span>
+      <img
+        src="/iam-logo.png"
+        alt="IAM"
+        width={64}
+        height={64}
+        className="h-6 w-auto mr-6"
+      />
       <div className="flex gap-1 flex-1">
         {tabs.map((t) => {
           const active =
