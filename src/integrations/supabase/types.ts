@@ -217,6 +217,7 @@ export type Database = {
         Row: {
           actions: Json
           category: string
+          completed_at: string | null
           created_at: string
           deadline: string | null
           id: string
@@ -229,6 +230,7 @@ export type Database = {
         Insert: {
           actions?: Json
           category: string
+          completed_at?: string | null
           created_at?: string
           deadline?: string | null
           id?: string
@@ -241,6 +243,7 @@ export type Database = {
         Update: {
           actions?: Json
           category?: string
+          completed_at?: string | null
           created_at?: string
           deadline?: string | null
           id?: string
