@@ -1,4 +1,5 @@
 import { loadJSON, saveJSON } from "./store";
+import { supabase } from "@/integrations/supabase/client";
 
 export type CategoryKey = "health" | "wealth" | "work" | "love" | "growth" | "play";
 
@@ -6,7 +7,7 @@ export interface CategoryMeta {
   key: CategoryKey;
   label: string;
   mantra: string;
-  hue: number; // for hsl accent
+  hue: number;
 }
 
 export const CATEGORIES: CategoryMeta[] = [
@@ -34,7 +35,7 @@ export interface Goal {
   imageUrl?: string;
   deadline?: string;
   createdAt: string;
-  completedAt?: string; // ISO timestamp when the goal was achieved
+  completedAt?: string;
   actions: ActionItem[];
 }
 
@@ -45,67 +46,197 @@ export interface GoalLog {
   note: string;
 }
 
-// ---- User-scoped storage ----
-// Goals & logs were originally stored under fixed keys, which caused data
-// from previous sessions/users to "leak" across logins on the same browser.
-// We now scope every key by the current user id (set by AuthProvider).
+// =====================================================================
+// In-memory cache backed by Supabase (with localStorage fallback for guests)
+// The public API stays synchronous so existing components work unchanged.
+// All writes are mirrored to Supabase asynchronously (fire-and-forget).
+// =====================================================================
+
 let CURRENT_USER_ID: string | null = null;
+let GOALS_CACHE: Goal[] = [];
+let LOGS_CACHE: Map<string, GoalLog> = new Map(); // key = `${goalId}__${date}`
+let LIFE_VISION_CACHE: string = "";
+let HYDRATED = false;
+
+const logCacheKey = (goalId: string, date: string) => `${goalId}__${date}`;
+
+const dbRowToGoal = (r: any): Goal => ({
+  id: r.id,
+  category: r.category as CategoryKey,
+  title: r.title,
+  vision: r.vision ?? "",
+  imageUrl: r.image_url ?? undefined,
+  deadline: r.deadline ?? undefined,
+  createdAt: r.created_at,
+  completedAt: r.completed_at ?? undefined,
+  actions: Array.isArray(r.actions) ? (r.actions as ActionItem[]) : [],
+});
+
+const goalToDbRow = (g: Goal, userId: string) => ({
+  id: g.id,
+  user_id: userId,
+  category: g.category,
+  title: g.title,
+  vision: g.vision ?? "",
+  image_url: g.imageUrl ?? null,
+  deadline: g.deadline ?? null,
+  actions: g.actions ?? [],
+  completed_at: g.completedAt ?? null,
+});
+
+const dbRowToLog = (r: any): GoalLog => ({
+  goalId: r.goal_id,
+  date: r.log_date,
+  checkedActionIds: Array.isArray(r.checked_action_ids) ? r.checked_action_ids : [],
+  note: r.note ?? "",
+});
+
+// ---- Guest fallback (pre-login, keeps localStorage behavior) ----
+const guestGoalsKey = () => `goals_v1__guest`;
+const guestLogKey = (goalId: string, date: string) => `goal_log__guest__${goalId}__${date}`;
+const guestLifeVisionKey = () => `life_vision__guest`;
+
+function loadGuest() {
+  GOALS_CACHE = loadJSON<Goal[]>(guestGoalsKey(), []);
+  LOGS_CACHE = new Map();
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(`goal_log__guest__`)) {
+      try {
+        const log = JSON.parse(localStorage.getItem(k)!) as GoalLog;
+        LOGS_CACHE.set(logCacheKey(log.goalId, log.date), log);
+      } catch {}
+    }
+  }
+  LIFE_VISION_CACHE = loadJSON<string>(guestLifeVisionKey(), "");
+  HYDRATED = true;
+}
+
+async function hydrateFromSupabase(userId: string) {
+  HYDRATED = false;
+  GOALS_CACHE = [];
+  LOGS_CACHE = new Map();
+  LIFE_VISION_CACHE = "";
+
+  const [{ data: goals }, { data: logs }, { data: profile }] = await Promise.all([
+    supabase.from("goals").select("*").eq("user_id", userId),
+    supabase.from("goal_logs").select("*").eq("user_id", userId),
+    supabase.from("profiles").select("life_vision").eq("id", userId).maybeSingle(),
+  ]);
+
+  GOALS_CACHE = (goals ?? []).map(dbRowToGoal);
+  for (const r of logs ?? []) {
+    const log = dbRowToLog(r);
+    LOGS_CACHE.set(logCacheKey(log.goalId, log.date), log);
+  }
+  LIFE_VISION_CACHE = (profile as any)?.life_vision ?? "";
+  HYDRATED = true;
+  window.dispatchEvent(new Event("goals-updated"));
+}
 
 export function setGoalsUserScope(userId: string | null) {
-  if (CURRENT_USER_ID === userId) return;
+  if (CURRENT_USER_ID === userId && HYDRATED) return;
   CURRENT_USER_ID = userId;
-  window.dispatchEvent(new Event("goals-updated"));
+  if (!userId) {
+    loadGuest();
+    window.dispatchEvent(new Event("goals-updated"));
+    return;
+  }
+  // hydrate async; emits goals-updated when done
+  hydrateFromSupabase(userId).catch((e) => {
+    console.error("[goals] hydrate failed", e);
+    HYDRATED = true;
+    window.dispatchEvent(new Event("goals-updated"));
+  });
 }
 
-const goalsKey = () =>
-  CURRENT_USER_ID ? `goals_v1__${CURRENT_USER_ID}` : `goals_v1__guest`;
+// ---- Goals API (sync surface) ----
 
 export function loadGoals(): Goal[] {
-  return loadJSON<Goal[]>(goalsKey(), []);
+  return GOALS_CACHE;
 }
+
 export function saveGoals(goals: Goal[]) {
-  saveJSON(goalsKey(), goals);
+  // Used rarely (bulk replace). For guest only — for authed users prefer upsert/delete.
+  GOALS_CACHE = goals;
+  if (!CURRENT_USER_ID) saveJSON(guestGoalsKey(), goals);
   window.dispatchEvent(new Event("goals-updated"));
 }
+
 export function goalsByCategory(category: CategoryKey, opts: { includeCompleted?: boolean } = {}): Goal[] {
-  return loadGoals().filter(
+  return GOALS_CACHE.filter(
     (g) => g.category === category && (opts.includeCompleted ? true : !g.completedAt)
   );
 }
 export function activeGoalsByCategory(category: CategoryKey): Goal[] {
-  return loadGoals().filter((g) => g.category === category && !g.completedAt);
+  return GOALS_CACHE.filter((g) => g.category === category && !g.completedAt);
 }
 export function completedGoalsByCategory(category: CategoryKey): Goal[] {
-  return loadGoals()
+  return GOALS_CACHE
     .filter((g) => g.category === category && !!g.completedAt)
     .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
 }
 export function getGoal(id: string): Goal | undefined {
-  return loadGoals().find((g) => g.id === id);
+  return GOALS_CACHE.find((g) => g.id === id);
 }
+
 export function upsertGoal(goal: Goal) {
-  const all = loadGoals();
-  const idx = all.findIndex((g) => g.id === goal.id);
-  if (idx >= 0) all[idx] = goal;
-  else all.push(goal);
-  saveGoals(all);
+  const idx = GOALS_CACHE.findIndex((g) => g.id === goal.id);
+  if (idx >= 0) GOALS_CACHE[idx] = goal;
+  else GOALS_CACHE.push(goal);
+  window.dispatchEvent(new Event("goals-updated"));
+
+  if (CURRENT_USER_ID) {
+    supabase
+      .from("goals")
+      .upsert(goalToDbRow(goal, CURRENT_USER_ID))
+      .then(({ error }) => {
+        if (error) console.error("[goals] upsert failed", error);
+      });
+  } else {
+    saveJSON(guestGoalsKey(), GOALS_CACHE);
+  }
 }
+
 export function completeGoal(id: string) {
-  const all = loadGoals();
-  const g = all.find((x) => x.id === id);
+  const g = GOALS_CACHE.find((x) => x.id === id);
   if (!g) return;
   g.completedAt = new Date().toISOString();
-  saveGoals(all);
+  upsertGoal(g);
 }
+
 export function reopenGoal(id: string) {
-  const all = loadGoals();
-  const g = all.find((x) => x.id === id);
+  const g = GOALS_CACHE.find((x) => x.id === id);
   if (!g) return;
   delete g.completedAt;
-  saveGoals(all);
+  if (CURRENT_USER_ID) {
+    supabase
+      .from("goals")
+      .update({ completed_at: null })
+      .eq("id", id)
+      .then(({ error }) => error && console.error("[goals] reopen failed", error));
+  } else {
+    saveJSON(guestGoalsKey(), GOALS_CACHE);
+  }
+  window.dispatchEvent(new Event("goals-updated"));
 }
+
 export function deleteGoal(id: string) {
-  saveGoals(loadGoals().filter((g) => g.id !== id));
+  GOALS_CACHE = GOALS_CACHE.filter((g) => g.id !== id);
+  // Also drop logs for that goal in cache
+  for (const k of Array.from(LOGS_CACHE.keys())) {
+    if (k.startsWith(`${id}__`)) LOGS_CACHE.delete(k);
+  }
+  window.dispatchEvent(new Event("goals-updated"));
+
+  if (CURRENT_USER_ID) {
+    supabase.from("goals").delete().eq("id", id).then(({ error }) => {
+      if (error) console.error("[goals] delete failed", error);
+    });
+    supabase.from("goal_logs").delete().eq("goal_id", id).then(() => {});
+  } else {
+    saveJSON(guestGoalsKey(), GOALS_CACHE);
+  }
 }
 
 export const todayStr = () => {
@@ -113,36 +244,51 @@ export const todayStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+// ---- Logs ----
+
 export function logKey(goalId: string, date: string) {
+  // Kept for backwards-compat with any external callers; not used internally now.
   const scope = CURRENT_USER_ID ?? "guest";
   return `goal_log__${scope}__${goalId}__${date}`;
 }
+
 export function loadLog(goalId: string, date: string): GoalLog {
-  return loadJSON<GoalLog>(logKey(goalId, date), {
-    goalId,
-    date,
-    checkedActionIds: [],
-    note: "",
-  });
+  const cached = LOGS_CACHE.get(logCacheKey(goalId, date));
+  if (cached) return cached;
+  return { goalId, date, checkedActionIds: [], note: "" };
 }
+
 export function saveLog(log: GoalLog) {
-  saveJSON(logKey(log.goalId, log.date), log);
+  LOGS_CACHE.set(logCacheKey(log.goalId, log.date), log);
   window.dispatchEvent(new Event("goals-updated"));
+
+  if (CURRENT_USER_ID) {
+    supabase
+      .from("goal_logs")
+      .upsert(
+        {
+          user_id: CURRENT_USER_ID,
+          goal_id: log.goalId,
+          log_date: log.date,
+          checked_action_ids: log.checkedActionIds,
+          note: log.note,
+        },
+        { onConflict: "user_id,goal_id,log_date" }
+      )
+      .then(({ error }) => {
+        if (error) console.error("[goal_logs] upsert failed", error);
+      });
+  } else {
+    saveJSON(guestLogKey(log.goalId, log.date), log);
+  }
 }
 
 export function listLogs(goalId: string): GoalLog[] {
-  const logs: GoalLog[] = [];
-  const scope = CURRENT_USER_ID ?? "guest";
-  const prefix = `goal_log__${scope}__${goalId}__`;
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(prefix)) {
-      try {
-        logs.push(JSON.parse(localStorage.getItem(k)!));
-      } catch {}
-    }
+  const out: GoalLog[] = [];
+  for (const [k, v] of LOGS_CACHE) {
+    if (k.startsWith(`${goalId}__`)) out.push(v);
   }
-  return logs.sort((a, b) => b.date.localeCompare(a.date));
+  return out.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function todayProgress(goal: Goal): { done: number; total: number } {
@@ -151,19 +297,34 @@ export function todayProgress(goal: Goal): { done: number; total: number } {
 }
 
 export function uid() {
+  // Use real UUIDs so goal ids are valid in Supabase (goal_logs.goal_id is uuid).
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
   return Math.random().toString(36).slice(2, 10);
 }
 
-// ---- Life Vision (one-line top vision) ----
-const lifeVisionKey = () =>
-  CURRENT_USER_ID ? `life_vision__${CURRENT_USER_ID}` : `life_vision__guest`;
+// ---- Life Vision ----
 
 export function loadLifeVision(): string {
-  return loadJSON<string>(lifeVisionKey(), "");
+  return LIFE_VISION_CACHE;
 }
+
 export function saveLifeVision(text: string) {
-  saveJSON(lifeVisionKey(), text);
+  LIFE_VISION_CACHE = text;
   window.dispatchEvent(new Event("goals-updated"));
+
+  if (CURRENT_USER_ID) {
+    supabase
+      .from("profiles")
+      .update({ life_vision: text })
+      .eq("id", CURRENT_USER_ID)
+      .then(({ error }) => {
+        if (error) console.error("[life_vision] update failed", error);
+      });
+  } else {
+    saveJSON(guestLifeVisionKey(), text);
+  }
 }
 
 // ---- Quarter helpers ----
