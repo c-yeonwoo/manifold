@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User as UserIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Profile {
   nickname: string | null;
@@ -52,9 +53,11 @@ export default function ProfileMenu() {
           <div className="text-[10px] text-muted-foreground">{user.email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <UserIcon className="w-3.5 h-3.5 mr-2" />
-          프로필 (준비 중)
+        <DropdownMenuItem asChild>
+          <Link to="/settings/profile">
+            <UserIcon className="w-3.5 h-3.5 mr-2" />
+            프로필 설정
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={signOut}>
           <LogOut className="w-3.5 h-3.5 mr-2" />
