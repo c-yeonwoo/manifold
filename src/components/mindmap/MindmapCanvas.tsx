@@ -459,18 +459,17 @@ function GoalNode({
   onClick: () => void;
 }) {
   const pct = total ? done / total : 0;
-  const r = 22;
-  const c = 2 * Math.PI * r;
-  // wrap title into up to 2 lines (~6 chars each)
-  const max = 12;
-  const t = goal.title.length > max ? goal.title.slice(0, max) + "…" : goal.title;
-  const lines: string[] = [];
-  if (t.length <= 6) {
-    lines.push(t);
-  } else {
-    lines.push(t.slice(0, 6));
-    lines.push(t.slice(6));
-  }
+  const max = 14;
+  const title = goal.title.length > max ? goal.title.slice(0, max) + "…" : goal.title;
+  // approximate width: ~9px per CJK/char + horizontal padding
+  const charW = 9;
+  const padX = 12;
+  const w = Math.max(64, Math.min(160, title.length * charW + padX * 2));
+  const h = 26;
+  const rx = 13;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  const barH = 3;
   return (
     <g
       onClick={onClick}
@@ -481,39 +480,52 @@ function GoalNode({
       }}
       className="hover:opacity-90"
     >
-      <circle cx={cx} cy={cy} r={r} fill="hsl(var(--card))" stroke={`hsl(${hue} 40% 30%)`} strokeWidth={1} />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill="none"
-        stroke={`hsl(${hue} 60% 55%)`}
-        strokeWidth={2}
-        strokeDasharray={`${c * pct} ${c}`}
-        transform={`rotate(-90 ${cx} ${cy})`}
-        strokeLinecap="round"
+      <rect
+        x={x}
+        y={y}
+        width={w}
+        height={h}
+        rx={rx}
+        ry={rx}
+        fill="hsl(var(--card))"
+        stroke={`hsl(${hue} 50% 50%)`}
+        strokeWidth={1.25}
       />
-      {/* title inside */}
-      <text
-        textAnchor="middle"
-        fill="hsl(var(--foreground))"
-        fontSize={10}
-        fontWeight={500}
-      >
-        {lines.map((ln, i) => (
-          <tspan
-            key={i}
-            x={cx}
-            y={cy + (lines.length === 1 ? 3 : i === 0 ? -3 : 9)}
-          >
-            {ln}
-          </tspan>
-        ))}
-      </text>
-      {/* count subtitle below node */}
+      {/* progress bar at bottom inside pill */}
+      <rect
+        x={x + 8}
+        y={y + h - barH - 4}
+        width={w - 16}
+        height={barH}
+        rx={barH / 2}
+        ry={barH / 2}
+        fill={`hsl(${hue} 30% 30% / 0.2)`}
+      />
+      <rect
+        x={x + 8}
+        y={y + h - barH - 4}
+        width={(w - 16) * pct}
+        height={barH}
+        rx={barH / 2}
+        ry={barH / 2}
+        fill={`hsl(${hue} 60% 55%)`}
+      />
+      {/* title */}
       <text
         x={cx}
-        y={cy + r + 12}
+        y={y + 12}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="hsl(var(--foreground))"
+        fontSize={11}
+        fontWeight={500}
+      >
+        {title}
+      </text>
+      {/* count subtitle below pill */}
+      <text
+        x={cx}
+        y={y + h + 11}
         textAnchor="middle"
         fontSize={9}
         fill="hsl(var(--muted-foreground))"
