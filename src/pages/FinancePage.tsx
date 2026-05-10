@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Trash2, TrendingDown, Share2, Upload, X, Loader2 } from "lucide-react";
+import { Trash2, TrendingDown, Share2, Upload, X, Loader2, ChevronDown } from "lucide-react";
 import { shareFinanceSummary } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 import {
@@ -65,6 +65,7 @@ export default function FinancePage() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(isoDate(now));
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   const refresh = useCallback(async () => {
     if (!user) return;
