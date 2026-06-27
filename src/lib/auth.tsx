@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { setGoalsUserScope } from "./goals";
 import { setManifoldUserScope } from "./manifold";
 
 interface AuthCtx {
@@ -21,14 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up listener FIRST
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      setGoalsUserScope(s?.user?.id ?? null);
       setManifoldUserScope(s?.user?.id ?? null);
       setLoading(false);
     });
     // THEN check existing session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setGoalsUserScope(data.session?.user?.id ?? null);
       setManifoldUserScope(data.session?.user?.id ?? null);
       setLoading(false);
     });

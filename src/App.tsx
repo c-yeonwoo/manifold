@@ -7,16 +7,10 @@ import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 import MindmapHome from "@/pages/MindmapHome";
-import CategoryPage from "@/pages/CategoryPage";
-import GoalDetailPage from "@/pages/GoalDetailPage";
-import RoutinePage from "@/pages/RoutinePage";
 import FinancePage from "@/pages/FinancePage";
 import MantraPage from "@/pages/MantraPage";
 import AuthPage from "@/pages/AuthPage";
-import ReviewPage from "@/pages/ReviewPage";
-import CommunityPage from "@/pages/CommunityPage";
 import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
-import PublicProfilePage from "@/pages/PublicProfilePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,14 +32,8 @@ const App = () => (
               }
             >
               <Route path="/" element={<MindmapHome />} />
-              <Route path="/category/:key" element={<CategoryPage />} />
-              <Route path="/category/:key/goal/:id" element={<GoalDetailPage />} />
-              <Route path="/routine" element={<RoutinePage />} />
               <Route path="/finance" element={<FinancePage />} />
               <Route path="/mantra" element={<MantraPage />} />
-              <Route path="/review" element={<ReviewPage />} />
-              <Route path="/community" element={<CommunityPage />} />
-              <Route path="/u/:handle" element={<PublicProfilePage />} />
               <Route path="/settings/profile" element={<ProfileSettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

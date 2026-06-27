@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Trash2, TrendingDown, Share2, Upload, X, Loader2, ChevronDown } from "lucide-react";
-import { shareFinanceSummary } from "@/lib/community";
+import { Trash2, TrendingDown, Upload, X, Loader2, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   listExpensesByMonth,
@@ -284,31 +283,6 @@ export default function FinancePage() {
             </div>
           </div>
           <div className="flex gap-2 self-start">
-            <button
-              onClick={async () => {
-                if (!monthExpenses.length) {
-                  toast.error("이번 달 지출이 아직 없어요");
-                  return;
-                }
-                const totals: Record<string, number> = {};
-                monthExpenses.forEach((e) => {
-                  totals[e.category] = (totals[e.category] ?? 0) + e.amount;
-                });
-                try {
-                  await shareFinanceSummary({
-                    year: now.getFullYear(),
-                    month: now.getMonth() + 1,
-                    totals,
-                  });
-                  toast.success("이번 달 지출 요약이 공유됐어요");
-                } catch (e: any) {
-                  toast.error(e.message ?? "공유 실패");
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5" /> 이달 공유
-            </button>
             <button
               onClick={() => fileRef.current?.click()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-border bg-card hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50"

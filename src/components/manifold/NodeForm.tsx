@@ -13,8 +13,8 @@ import {
   type ManifoldNode,
   type Layer,
   type NodeStatus,
+  type ActionItem,
 } from "@/lib/manifold";
-import type { ActionItem } from "@/lib/goals";
 
 interface Props {
   open: boolean;

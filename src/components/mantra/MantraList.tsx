@@ -9,8 +9,10 @@ import {
   updateAffirmation,
   SEED_EXAMPLES,
 } from "@/lib/affirmations";
-import { CATEGORIES } from "@/lib/goals";
+import { LAYERS } from "@/lib/manifold";
 import { toast } from "sonner";
+
+const CATEGORIES = LAYERS.map((l) => ({ key: l.key, label: l.label }));
 
 export default function MantraList() {
   const { user } = useAuth();

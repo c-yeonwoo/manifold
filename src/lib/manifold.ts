@@ -1,6 +1,10 @@
 import { loadJSON, saveJSON } from "./store";
 import { supabase } from "@/integrations/supabase/client";
-import type { ActionItem } from "./goals";
+
+export interface ActionItem {
+  id: string;
+  label: string;
+}
 
 // =====================================================================
 // manifold — graph-native life model.
