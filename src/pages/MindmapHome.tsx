@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import ManifoldCanvas from "@/components/manifold/ManifoldCanvas";
+import TimelineView from "@/components/manifold/TimelineView";
 import MindmapCanvas from "@/components/mindmap/MindmapCanvas";
 import MandalaGrid from "@/components/mindmap/MandalaGrid";
 import LifeVisionCard from "@/components/mindmap/LifeVisionCard";
-import { Network, LayoutGrid, ClipboardList } from "lucide-react";
+import { Workflow, CalendarRange, Network, LayoutGrid, ClipboardList } from "lucide-react";
 
-type ViewMode = "mindmap" | "grid";
+type ViewMode = "manifold" | "timeline" | "mindmap" | "grid";
 
 export default function MindmapHome() {
   const [mode, setMode] = useState<ViewMode>(
-    (localStorage.getItem("vision_view_mode") as ViewMode) || "mindmap"
+    (localStorage.getItem("vision_view_mode") as ViewMode) || "manifold"
   );
   const setView = (m: ViewMode) => {
     setMode(m);
@@ -29,6 +31,28 @@ export default function MindmapHome() {
         </div>
         <div className="flex-1 flex items-center justify-end gap-2">
           <div className="inline-flex rounded-md border border-border bg-card/40 p-0.5">
+            <button
+              onClick={() => setView("manifold")}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] transition-colors ${
+                mode === "manifold"
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="manifold"
+            >
+              <Workflow className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setView("timeline")}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] transition-colors ${
+                mode === "timeline"
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="타임라인"
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={() => setView("mindmap")}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] transition-colors ${
@@ -62,7 +86,15 @@ export default function MindmapHome() {
         </div>
       </div>
 
-      {mode === "mindmap" ? <MindmapCanvas /> : <MandalaGrid />}
+      {mode === "manifold" ? (
+        <ManifoldCanvas />
+      ) : mode === "timeline" ? (
+        <TimelineView />
+      ) : mode === "mindmap" ? (
+        <MindmapCanvas />
+      ) : (
+        <MandalaGrid />
+      )}
 
       <p className="text-center text-[12px] text-muted-foreground italic mt-4">
         잠재의식은 매일의 작은 행동으로 현실이 된다.
