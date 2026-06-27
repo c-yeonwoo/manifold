@@ -27,6 +27,7 @@ interface SeedNode {
   status: NodeStatus;
   horizon?: string;
   category?: string;
+  actions?: string[];
 }
 
 interface SeedEdge {
@@ -40,15 +41,15 @@ interface SeedEdge {
 // Active threads are capped at 3 (ACTIVE_LIMIT): 커리어 · 부동산 · 루틴.
 const SEED_NODES: SeedNode[] = [
   // 🟢 BASE
-  { key: "routine",  layer: "base", kind: "routine",      title: "루틴 · 건강",        description: "수면·공복유산소·헬스·테니스. 무너지면 전체가 무너지는 substrate.", status: "active", horizon: "now",  category: "health" },
+  { key: "routine",  layer: "base", kind: "routine",      title: "루틴 · 건강",        description: "수면·공복유산소·헬스·테니스. 무너지면 전체가 무너지는 substrate.", status: "active", horizon: "now",  category: "health", actions: ["공복유산소", "헬스/테니스", "23시 취침"] },
   { key: "mindset",  layer: "base", kind: "mindset",      title: "마인드셋 · 끌어당김",  description: "믿음→일관성→결과. 통제 대신 활동량으로 기댓값을 올린다.",            status: "queued", horizon: "now",  category: "growth" },
 
   // 🟡 CORE
-  { key: "career",   layer: "core", kind: "career",       title: "커리어 (오늘의집→이직)", description: "커머스 통합·프로모션·Lore로 성과 → 네카라쿠배 이직 메리트.",        status: "active", horizon: "28H1", category: "work" },
+  { key: "career",   layer: "core", kind: "career",       title: "커리어 (오늘의집→이직)", description: "커머스 통합·프로모션·Lore로 성과 → 네카라쿠배 이직 메리트.",        status: "active", horizon: "28H1", category: "work", actions: ["아침 딥워크 1블록", "Lore/프로모션 진척"] },
   { key: "auto",     layer: "core", kind: "automation",   title: "자동화 역량",          description: "에이전트 팀·n8n·봇. 회사와 사이드에 같은 인프라를 적용.",            status: "queued", horizon: "now",  category: "work" },
 
   // 🔵 OUTPUT
-  { key: "asset",    layer: "output", kind: "asset",        title: "자산 · 부동산",       description: "사이클 분석→경매→내집마련. 생애최초 7억, DSR 40% 스트레스.",        status: "active", horizon: "26H2", category: "wealth" },
+  { key: "asset",    layer: "output", kind: "asset",        title: "자산 · 부동산",       description: "사이클 분석→경매→내집마련. 생애최초 7억, DSR 40% 스트레스.",        status: "active", horizon: "26H2", category: "wealth", actions: ["임장/경매 분석 30분", "DSR·한도 점검"] },
   { key: "online",   layer: "output", kind: "venture",      title: "온라인 사업 (팔레트·샐비지)", description: "자동화로 무인 운영하는 부수입원. 한계비용 0.",                  status: "queued", horizon: "27H1", category: "wealth" },
   { key: "offline",  layer: "output", kind: "venture",      title: "오프라인 벤처 (카페·혼술바)", description: "고변동 노드. 착수 전 실사 체크리스트 통과가 게이트.",            status: "queued", horizon: "TBD",  category: "wealth" },
   { key: "brand",    layer: "output", kind: "brand",        title: "브랜드 · 콘텐츠 (음악·유튜브)", description: "퍼스널 브랜딩·즐거움. 수입으로 계산하지 않음.",                 status: "queued", horizon: "26H2", category: "play" },
@@ -108,7 +109,7 @@ export function buildLifeOSSeed(): LifeOSSeed {
       horizon: s.horizon,
       category: s.category,
       vision: "",
-      actions: [],
+      actions: (s.actions ?? []).map((label) => ({ id: uid(), label })),
       meta: { seeded: "life-os" },
       createdAt: now,
     };

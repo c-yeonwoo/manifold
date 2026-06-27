@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import {
   loadNodes,
   loadEdges,
+  todayNodeProgress,
   LAYERS,
   EDGE_META,
   type ManifoldNode,
@@ -322,6 +323,7 @@ function NodeShape({
   const isActive = node.status === "active";
   const isDone = node.status === "done";
   const isQueued = node.status === "queued";
+  const prog = todayNodeProgress(node);
 
   const fill = isLight ? `hsl(${hue} 50% 97%)` : `hsl(${hue} 28% 13%)`;
   const stroke = isActive
@@ -369,6 +371,12 @@ function NodeShape({
       <text x={x} y={y + 13} textAnchor="middle" fontSize={8.5} fill="hsl(var(--muted-foreground))" style={{ fontFamily: "var(--mono-font)", letterSpacing: 0.5 }}>
         {node.kind}{node.horizon ? ` · ${node.horizon}` : ""}
       </text>
+      {prog.total > 0 && (
+        <>
+          <rect x={x - w / 2 + 12} y={y + h / 2 - 8} width={w - 24} height={3} rx={1.5} fill={`hsl(${hue} 30% 35% / 0.25)`} />
+          <rect x={x - w / 2 + 12} y={y + h / 2 - 8} width={(w - 24) * (prog.done / prog.total)} height={3} rx={1.5} fill={`hsl(${hue} 60% 55%)`} />
+        </>
+      )}
     </g>
   );
 }

@@ -11,6 +11,10 @@ import {
   edgesTo,
   getNode,
   getLayer,
+  loadNodeLog,
+  toggleNodeAction,
+  todayNodeProgress,
+  todayStr,
   EDGE_META,
   type ManifoldNode,
   type NodeStatus,
@@ -46,6 +50,9 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
 
   const outFlows = edgesFrom(node.id);
   const inFlows = edgesTo(node.id);
+  const today = todayStr();
+  const log = loadNodeLog(node.id, today);
+  const prog = todayNodeProgress(node);
 
   return (
     <div className="absolute right-2 bottom-2 z-20 w-72 rounded-xl border border-border bg-card shadow-lg p-4" style={{ borderTopColor: `hsl(${hue} 60% 55%)`, borderTopWidth: 3 }}>
@@ -99,6 +106,35 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
           완료
         </button>
       </div>
+
+      {/* today's check-in */}
+      {node.actions.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">오늘의 체크인</span>
+            <span className="font-mono-num text-[10px] text-muted-foreground">{prog.done}/{prog.total}</span>
+          </div>
+          <div className="space-y-1">
+            {node.actions.map((a) => {
+              const checked = log.checkedActionIds.includes(a.id);
+              return (
+                <label key={a.id} className="flex items-center gap-2 text-[12px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleNodeAction(node.id, a.id)}
+                    className="accent-primary"
+                  />
+                  <span className={checked ? "text-muted-foreground line-through" : "text-foreground/90"}>{a.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="h-[3px] bg-secondary rounded-full mt-2 overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${prog.total ? (prog.done / prog.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+      )}
 
       {/* flows */}
       {(outFlows.length > 0 || inFlows.length > 0) && (

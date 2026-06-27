@@ -86,6 +86,18 @@ export interface ManifoldEdge {
   label: string;
 }
 
+export interface NodeLog {
+  nodeId: string;
+  date: string;
+  checkedActionIds: string[];
+  note: string;
+}
+
+export const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 // ---- row <-> model mapping --------------------------------------------------
 
 const dbRowToNode = (r: any): ManifoldNode => ({
@@ -158,18 +170,38 @@ const db = supabase as any;
 let CURRENT_USER_ID: string | null = null;
 let NODES_CACHE: ManifoldNode[] = [];
 let EDGES_CACHE: ManifoldEdge[] = [];
+let LOGS_CACHE: Map<string, NodeLog> = new Map(); // key = `${nodeId}__${date}`
 let HYDRATED = false;
 
 const emit = () => window.dispatchEvent(new Event("manifold-updated"));
+const logCacheKey = (nodeId: string, date: string) => `${nodeId}__${date}`;
+
+const dbRowToLog = (r: any): NodeLog => ({
+  nodeId: r.node_id,
+  date: r.log_date,
+  checkedActionIds: Array.isArray(r.checked_action_ids) ? r.checked_action_ids : [],
+  note: r.note ?? "",
+});
 
 // ---- guest (localStorage) fallback -----------------------------------------
 
 const guestNodesKey = () => `manifold_nodes__guest`;
 const guestEdgesKey = () => `manifold_edges__guest`;
+const guestLogKey = (nodeId: string, date: string) => `manifold_log__guest__${nodeId}__${date}`;
 
 function loadGuest() {
   NODES_CACHE = loadJSON<ManifoldNode[]>(guestNodesKey(), []);
   EDGES_CACHE = loadJSON<ManifoldEdge[]>(guestEdgesKey(), []);
+  LOGS_CACHE = new Map();
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith("manifold_log__guest__")) {
+      try {
+        const log = JSON.parse(localStorage.getItem(k)!) as NodeLog;
+        LOGS_CACHE.set(logCacheKey(log.nodeId, log.date), log);
+      } catch {}
+    }
+  }
   HYDRATED = true;
 }
 
@@ -182,14 +214,20 @@ async function hydrateFromSupabase(userId: string) {
   HYDRATED = false;
   NODES_CACHE = [];
   EDGES_CACHE = [];
+  LOGS_CACHE = new Map();
 
-  const [{ data: nodes }, { data: edges }] = await Promise.all([
+  const [{ data: nodes }, { data: edges }, { data: logs }] = await Promise.all([
     db.from("manifold_nodes").select("*").eq("user_id", userId),
     db.from("manifold_edges").select("*").eq("user_id", userId),
+    db.from("manifold_node_logs").select("*").eq("user_id", userId),
   ]);
 
   NODES_CACHE = (nodes ?? []).map(dbRowToNode);
   EDGES_CACHE = (edges ?? []).map(dbRowToEdge);
+  for (const r of logs ?? []) {
+    const log = dbRowToLog(r);
+    LOGS_CACHE.set(logCacheKey(log.nodeId, log.date), log);
+  }
   HYDRATED = true;
   emit();
 }
@@ -284,6 +322,9 @@ export function setNodeStatus(id: string, status: NodeStatus) {
 export function deleteNode(id: string) {
   NODES_CACHE = NODES_CACHE.filter((n) => n.id !== id);
   EDGES_CACHE = EDGES_CACHE.filter((e) => e.sourceId !== id && e.targetId !== id);
+  for (const k of Array.from(LOGS_CACHE.keys())) {
+    if (k.startsWith(`${id}__`)) LOGS_CACHE.delete(k);
+  }
   emit();
 
   if (CURRENT_USER_ID) {
@@ -329,4 +370,58 @@ export function deleteEdge(id: string) {
 export function uid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return Math.random().toString(36).slice(2, 10);
+}
+
+// ---- daily node logs (execution layer) -------------------------------------
+
+export function loadNodeLog(nodeId: string, date: string): NodeLog {
+  return (
+    LOGS_CACHE.get(logCacheKey(nodeId, date)) ?? { nodeId, date, checkedActionIds: [], note: "" }
+  );
+}
+
+export function saveNodeLog(log: NodeLog) {
+  LOGS_CACHE.set(logCacheKey(log.nodeId, log.date), log);
+  emit();
+
+  if (CURRENT_USER_ID) {
+    db.from("manifold_node_logs")
+      .upsert(
+        {
+          user_id: CURRENT_USER_ID,
+          node_id: log.nodeId,
+          log_date: log.date,
+          checked_action_ids: log.checkedActionIds as any,
+          note: log.note,
+        },
+        { onConflict: "node_id,log_date" }
+      )
+      .then(({ error }: any) => error && console.error("[manifold] node_log upsert failed", error));
+  } else {
+    saveJSON(guestLogKey(log.nodeId, log.date), log);
+  }
+}
+
+/** Toggle one action's checked state for a node on a date; persists the log. */
+export function toggleNodeAction(nodeId: string, actionId: string, date = todayStr()) {
+  const log = loadNodeLog(nodeId, date);
+  const on = log.checkedActionIds.includes(actionId);
+  const checkedActionIds = on
+    ? log.checkedActionIds.filter((id) => id !== actionId)
+    : [...log.checkedActionIds, actionId];
+  saveNodeLog({ ...log, checkedActionIds });
+}
+
+export function todayNodeProgress(node: ManifoldNode): { done: number; total: number } {
+  const log = loadNodeLog(node.id, todayStr());
+  const total = node.actions.length;
+  const valid = new Set(node.actions.map((a) => a.id));
+  const done = log.checkedActionIds.filter((id) => valid.has(id)).length;
+  return { done, total };
+}
+
+export function listNodeLogs(nodeId: string): NodeLog[] {
+  const out: NodeLog[] = [];
+  for (const [k, v] of LOGS_CACHE) if (k.startsWith(`${nodeId}__`)) out.push(v);
+  return out.sort((a, b) => b.date.localeCompare(a.date));
 }
