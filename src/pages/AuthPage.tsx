@@ -79,11 +79,11 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm animate-fade-up">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-medium tracking-tight text-primary font-mono">IAM</h1>
+          <h1 className="text-3xl font-medium tracking-tight text-primary font-mono">manifold</h1>
           <p className="text-[12px] text-muted-foreground mt-2 tracking-[0.3em] uppercase">
-            I am becoming
+            base · core · output
           </p>
-          <p className="text-[13px] text-foreground/80 mt-4">원하는 건 무엇이든 이뤄진다</p>
+          <p className="text-[13px] text-foreground/80 mt-4">삶의 플라이휠을 그리고, 돌려라</p>
         </div>
 
         <form onSubmit={submit} className="space-y-3">
