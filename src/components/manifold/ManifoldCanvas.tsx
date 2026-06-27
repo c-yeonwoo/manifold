@@ -23,7 +23,8 @@ import {
 import ActiveThreadsPanel from "./ActiveThreadsPanel";
 import NodeDetail from "./NodeDetail";
 import NodeForm from "./NodeForm";
-import { Plus } from "lucide-react";
+import ReportImport from "./ReportImport";
+import { Plus, FileText } from "lucide-react";
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 3;
@@ -54,6 +55,7 @@ export default function ManifoldCanvas() {
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const panState = useRef({ active: false, moved: false, startX: 0, startY: 0, origX: 0, origY: 0 });
 
   const nodes = loadNodes();
@@ -155,12 +157,14 @@ export default function ManifoldCanvas() {
 
       <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
         <button onClick={() => setAddOpen(true)} className="w-8 h-8 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center" aria-label="노드 추가" title="노드 추가"><Plus className="w-4 h-4" /></button>
+        <button onClick={() => setImportOpen(true)} className="w-8 h-8 rounded-md bg-card border border-border text-foreground hover:bg-accent flex items-center justify-center" aria-label="리포트 가져오기" title="리포트 가져오기"><FileText className="w-3.5 h-3.5" /></button>
         <button onClick={() => zoomBy(1.2)} className="w-8 h-8 rounded-md bg-card border border-border text-foreground hover:bg-accent text-sm" aria-label="zoom in">+</button>
         <button onClick={() => zoomBy(1 / 1.2)} className="w-8 h-8 rounded-md bg-card border border-border text-foreground hover:bg-accent text-sm" aria-label="zoom out">−</button>
         <button onClick={reset} className="w-8 h-8 rounded-md bg-card border border-border text-muted-foreground hover:text-foreground text-[10px]" aria-label="reset" title="원위치">⟳</button>
       </div>
 
       <NodeForm open={addOpen} onOpenChange={setAddOpen} />
+      <ReportImport open={importOpen} onOpenChange={setImportOpen} />
 
       <svg
         ref={svgRef}
@@ -370,18 +374,27 @@ function NodeShape({
 }
 
 function EmptyState() {
-  const onSeed = () => seedLifeOS({ force: true });
+  const [importOpen, setImportOpen] = useState(false);
   return (
     <div className="max-w-md mx-auto text-center py-20">
       <p className="text-sm text-muted-foreground mb-4">
-        아직 노드가 없습니다. Life OS 리포트로 플라이휠을 시작하세요.
+        아직 노드가 없습니다. 플라이휠을 시작하세요.
       </p>
-      <button
-        onClick={onSeed}
-        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-      >
-        리포트로 시작하기
-      </button>
+      <div className="flex items-center justify-center gap-2">
+        <button
+          onClick={() => seedLifeOS({ force: true })}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          예시(Life OS)로 시작
+        </button>
+        <button
+          onClick={() => setImportOpen(true)}
+          className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-accent transition-colors"
+        >
+          내 리포트 가져오기
+        </button>
+      </div>
+      <ReportImport open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
