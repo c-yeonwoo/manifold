@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
-const KEY = "iam-theme";
+const KEY = "manifold-theme";
 
 const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({
   theme: "dark",
