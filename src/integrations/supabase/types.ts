@@ -255,6 +255,164 @@ export type Database = {
         }
         Relationships: []
       }
+      manifold_edges: {
+        Row: {
+          created_at: string
+          flow: string | null
+          id: string
+          label: string
+          source_id: string
+          target_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          flow?: string | null
+          id?: string
+          label?: string
+          source_id: string
+          target_id: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          flow?: string | null
+          id?: string
+          label?: string
+          source_id?: string
+          target_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manifold_edges_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "manifold_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manifold_edges_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "manifold_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manifold_node_logs: {
+        Row: {
+          checked_action_ids: Json
+          created_at: string
+          id: string
+          log_date: string
+          node_id: string
+          note: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked_action_ids?: Json
+          created_at?: string
+          id?: string
+          log_date: string
+          node_id: string
+          note?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked_action_ids?: Json
+          created_at?: string
+          id?: string
+          log_date?: string
+          node_id?: string
+          note?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manifold_node_logs_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "manifold_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manifold_nodes: {
+        Row: {
+          actions: Json
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          horizon: string | null
+          id: string
+          image_url: string | null
+          kind: string
+          layer: string
+          meta: Json
+          priority: number
+          status: string
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          vision: string
+          x: number | null
+          y: number | null
+        }
+        Insert: {
+          actions?: Json
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          horizon?: string | null
+          id?: string
+          image_url?: string | null
+          kind?: string
+          layer: string
+          meta?: Json
+          priority?: number
+          status?: string
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          vision?: string
+          x?: number | null
+          y?: number | null
+        }
+        Update: {
+          actions?: Json
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          horizon?: string | null
+          id?: string
+          image_url?: string | null
+          kind?: string
+          layer?: string
+          meta?: Json
+          priority?: number
+          status?: string
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vision?: string
+          x?: number | null
+          y?: number | null
+        }
+        Relationships: []
+      }
       pairs: {
         Row: {
           a_user_id: string
