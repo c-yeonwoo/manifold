@@ -377,13 +377,17 @@ function NodeShape({
   isLight,
   selected,
   dimmed,
+  dragging,
   onClick,
+  onPointerDown,
 }: {
   placed: Placed;
   isLight: boolean;
   selected: boolean;
   dimmed: boolean;
+  dragging?: boolean;
   onClick: () => void;
+  onPointerDown?: (e: React.PointerEvent<SVGGElement>) => void;
 }) {
   const { node, x, y } = placed;
   const layer = LAYERS.find((l) => l.key === node.layer)!;
@@ -407,12 +411,14 @@ function NodeShape({
   return (
     <g
       onClick={onClick}
-      style={{ cursor: "pointer", opacity: dimmed ? 0.28 : isDone ? 0.7 : 1, transition: "opacity 0.25s ease" }}
+      onPointerDown={onPointerDown}
+      style={{ cursor: dragging ? "grabbing" : "grab", opacity: dimmed ? 0.28 : isDone ? 0.7 : 1, transition: dragging ? "none" : "opacity 0.25s ease" }}
     >
       <title>{node.title}</title>
       {isActive && (
         <rect x={x - w / 2 - 3} y={y - h / 2 - 3} width={w + 6} height={h + 6} rx={14} fill="none" stroke={`hsl(${hue} 70% 55%)`} strokeWidth={1} opacity={0.4} className="animate-pulse-amber" />
       )}
+
       <rect
         x={x - w / 2}
         y={y - h / 2}
