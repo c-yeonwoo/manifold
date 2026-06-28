@@ -302,9 +302,12 @@ export default function ManifoldCanvas() {
               isLight={isLight}
               selected={selectedId === p.node.id}
               dimmed={selectedId != null && !connectedNodeIds.has(p.node.id)}
+              dragging={dragRef.current?.id === p.node.id}
               onClick={() => selectNode(p.node.id)}
+              onPointerDown={(e) => onNodePointerDown(p.node.id, e)}
             />
           ))}
+
         </g>
       </svg>
 
