@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Trash2, TrendingDown, Upload, X, Loader2, ChevronDown } from "lucide-react";
+import { Trash2, TrendingDown, Upload, X, Loader2, ChevronDown, Calendar as CalendarIcon, Check, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   listExpensesByMonth,
@@ -11,8 +11,23 @@ import {
   type Expense,
 } from "@/lib/expenses";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+const QUICK_CATS = ["식비", "카페", "교통", "쇼핑"];
+const QUICK_AMOUNTS = [1000, 5000, 10000];
+
+function formatAmount(v: string) {
+  const digits = v.replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString();
+}
+function parseAmount(v: string) {
+  return Number(v.replace(/[^\d]/g, ""));
+}
 
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
