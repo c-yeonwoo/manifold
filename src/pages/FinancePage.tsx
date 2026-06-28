@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Trash2, TrendingDown, Upload, X, Loader2, ChevronDown } from "lucide-react";
+import { Trash2, TrendingDown, Upload, X, Loader2, ChevronDown, Calendar as CalendarIcon, Check, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   listExpensesByMonth,
@@ -11,8 +11,23 @@ import {
   type Expense,
 } from "@/lib/expenses";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+const QUICK_CATS = ["식비", "카페", "교통", "쇼핑"];
+const QUICK_AMOUNTS = [1000, 5000, 10000];
+
+function formatAmount(v: string) {
+  const digits = v.replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString();
+}
+function parseAmount(v: string) {
+  return Number(v.replace(/[^\d]/g, ""));
+}
 
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -61,10 +76,13 @@ export default function FinancePage() {
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("식비");
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(isoDate(now));
+  const [amount, setAmount] = useState(""); // formatted with commas
+  const [date, setDate] = useState<Date>(now);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [justSaved, setJustSaved] = useState(false);
+  const [moreCatOpen, setMoreCatOpen] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -92,28 +110,34 @@ export default function FinancePage() {
 
   const addExpense = async () => {
     if (!user || !name.trim() || !amount) return;
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt < 0) {
+    const amt = parseAmount(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
       toast.error("올바른 금액을 입력해주세요");
       return;
     }
     setBusy(true);
     try {
+      const dateStr = isoDate(date);
       await createExpense({
         user_id: user.id,
-        date,
+        date: dateStr,
         category,
         name: name.trim(),
         amount: amt,
       });
       setName("");
       setAmount("");
-      const targetMonth = date.slice(0, 7);
+      const targetMonth = dateStr.slice(0, 7);
       if (targetMonth !== monthKey) {
         toast.success(`${targetMonth} 에 추가됐어요`);
+      } else {
+        setJustSaved(true);
+        window.setTimeout(() => setJustSaved(false), 1200);
       }
       notifyExpensesChanged();
       await refresh();
+      // keep category, refocus name for continuous entry
+      window.setTimeout(() => nameInputRef.current?.focus(), 0);
     } catch (e: any) {
       toast.error(e.message ?? "추가 실패");
     } finally {
@@ -184,6 +208,23 @@ export default function FinancePage() {
     ...c,
     total: monthExpenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
+
+  // Recent name suggestions for the currently selected category
+  const nameSuggestions = useMemo(() => {
+    const seen = new Map<string, { name: string; amount: number }>();
+    const sorted = [...yearExpenses].sort((a, b) =>
+      a.date < b.date ? 1 : a.date > b.date ? -1 : (a.created_at < b.created_at ? 1 : -1)
+    );
+    for (const e of sorted) {
+      if (e.category !== category) continue;
+      const key = e.name.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.set(key, { name: e.name, amount: e.amount });
+      if (seen.size >= 5) break;
+    }
+    return Array.from(seen.values());
+  }, [yearExpenses, category]);
+
 
   // Daily totals across the entire year (from yearExpenses)
   const dailyTotals = useMemo(() => {
@@ -306,53 +347,142 @@ export default function FinancePage() {
         </div>
 
         {/* Input */}
-        <div className="bg-card rounded-lg border border-border p-4 mb-6">
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => setCategory(c.key)}
-                className={`px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors duration-150 active:scale-[0.97] ${
-                  category === c.key
-                    ? "bg-primary/15 text-primary"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {c.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-3" onKeyDown={handleKeyDown}>
+        <div className={`bg-card rounded-lg border p-4 mb-6 transition-colors ${justSaved ? "border-success" : "border-border"}`}>
+          {/* Row 1: name + amount + add */}
+          <div className="flex gap-2 items-stretch" onKeyDown={handleKeyDown}>
             <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-secondary rounded-md px-2 py-2 text-sm text-foreground outline-none font-mono"
-            />
-            <input
+              ref={nameInputRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="지출 내역 (Cmd+Enter)"
-              className="flex-1 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              placeholder="지출 내역"
+              className="flex-1 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/40"
+              autoFocus
             />
-            <input
-              type="number"
-              inputMode="numeric"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="금액"
-              className="w-28 bg-secondary rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(formatAmount(e.target.value))}
+                placeholder="금액"
+                className="w-32 bg-secondary rounded-md pl-3 pr-6 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono text-right focus:ring-1 focus:ring-primary/40"
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">원</span>
+            </div>
             <button
               onClick={addExpense}
               disabled={busy || !name.trim() || !amount}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all duration-150 active:scale-[0.97] disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all duration-150 active:scale-[0.97] disabled:opacity-50 inline-flex items-center gap-1.5 min-w-[68px] justify-center"
             >
-              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              추가
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : justSaved ? <Check className="w-3.5 h-3.5" /> : "추가"}
             </button>
           </div>
+
+          {/* Row 2: quick amount + date */}
+          <div className="flex items-center gap-2 mt-2 text-[11px]">
+            <span className="text-muted-foreground">빠른 가산</span>
+            {QUICK_AMOUNTS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setAmount(formatAmount(String((parseAmount(amount) || 0) + q)))}
+                className="px-2 py-0.5 rounded bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/70 font-mono"
+              >
+                +{q.toLocaleString()}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary font-mono"
+                >
+                  <CalendarIcon className="w-3 h-3" />
+                  {isoDate(date) === isoDate(now) ? "오늘" : format(date, "M/d (EEE)")}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Row 3: category chips (quick + more) */}
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {QUICK_CATS.map((k) => {
+              const c = CATEGORIES.find((cc) => cc.key === k)!;
+              const active = category === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setCategory(k)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors active:scale-[0.97] ${
+                    active ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${c.color}`} />
+                  {k}
+                </button>
+              );
+            })}
+            {!QUICK_CATS.includes(category) && (
+              <button
+                onClick={() => setCategory(category)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium bg-primary/15 text-primary ring-1 ring-primary/30"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${CATEGORIES.find((c) => c.key === category)?.color ?? "bg-gray-500"}`} />
+                {category}
+              </button>
+            )}
+            <Popover open={moreCatOpen} onOpenChange={setMoreCatOpen}>
+              <PopoverTrigger asChild>
+                <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] bg-secondary text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="w-3 h-3" /> 기타
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-1.5" align="start">
+                <div className="grid grid-cols-2 gap-1">
+                  {CATEGORIES.filter((c) => !QUICK_CATS.includes(c.key)).map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => { setCategory(c.key); setMoreCatOpen(false); }}
+                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[12px] hover:bg-secondary text-left ${
+                        category === c.key ? "text-primary" : "text-foreground"
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${c.color}`} />
+                      {c.key}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Row 4: autocomplete from recent names in this category */}
+          {nameSuggestions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2.5 border-t border-border/60">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider self-center">최근</span>
+              {nameSuggestions.map((s) => (
+                <button
+                  key={s.name + s.amount}
+                  onClick={() => { setName(s.name); setAmount(formatAmount(String(s.amount))); }}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary/60 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  {s.name}
+                  <span className="font-mono text-[10px] opacity-70">{s.amount.toLocaleString()}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Filter chip */}
