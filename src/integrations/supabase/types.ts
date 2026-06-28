@@ -634,6 +634,7 @@ export type Database = {
         Row: {
           goal_id: string
           id: string
+          is_public: boolean
           shared_at: string
           snapshot: Json
           user_id: string
@@ -641,6 +642,7 @@ export type Database = {
         Insert: {
           goal_id: string
           id?: string
+          is_public?: boolean
           shared_at?: string
           snapshot: Json
           user_id: string
@@ -648,6 +650,7 @@ export type Database = {
         Update: {
           goal_id?: string
           id?: string
+          is_public?: boolean
           shared_at?: string
           snapshot?: Json
           user_id?: string
