@@ -76,10 +76,13 @@ export default function FinancePage() {
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("식비");
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(isoDate(now));
+  const [amount, setAmount] = useState(""); // formatted with commas
+  const [date, setDate] = useState<Date>(now);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [justSaved, setJustSaved] = useState(false);
+  const [moreCatOpen, setMoreCatOpen] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
