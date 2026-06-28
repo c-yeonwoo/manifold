@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { X, Pencil, Link2 } from "lucide-react";
+import { X, Pencil, Link2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+
 import {
   setNodeStatus,
   deleteNode,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/manifold";
 import NodeForm from "./NodeForm";
 import EdgeForm from "./EdgeForm";
+import SuggestActions from "./SuggestActions";
+
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
   active: "진행 중",
@@ -34,6 +37,8 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
   const hue = layer?.hue ?? 0;
   const [editOpen, setEditOpen] = useState(false);
   const [edgeOpen, setEdgeOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
 
   const promote = () => {
     const blockers = unmetGates(node.id);
@@ -64,6 +69,9 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
           <h3 className="text-sm font-medium leading-tight">{node.title}</h3>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={() => setSuggestOpen(true)} className="text-muted-foreground hover:text-primary" aria-label="AI 액션 제안" title="AI 액션 제안">
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-foreground" aria-label="수정" title="수정">
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -74,6 +82,7 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
             <X className="w-4 h-4" />
           </button>
         </div>
+
       </div>
 
       {node.description && <p className="text-[12px] text-muted-foreground mt-1 mb-2 leading-snug">{node.description}</p>}
@@ -182,6 +191,8 @@ export default function NodeDetail({ node, onClose }: { node: ManifoldNode; onCl
 
       <NodeForm open={editOpen} onOpenChange={setEditOpen} initial={node} />
       <EdgeForm open={edgeOpen} onOpenChange={setEdgeOpen} defaultSourceId={node.id} />
+      <SuggestActions open={suggestOpen} onOpenChange={setSuggestOpen} node={node} />
     </div>
   );
 }
+
