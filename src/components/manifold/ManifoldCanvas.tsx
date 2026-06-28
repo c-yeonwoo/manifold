@@ -3,6 +3,7 @@ import {
   loadNodes,
   loadEdges,
   todayNodeProgress,
+  upsertNode,
   LAYERS,
   EDGE_META,
   type ManifoldNode,
@@ -10,6 +11,7 @@ import {
   type EdgeType,
 } from "@/lib/manifold";
 import { seedLifeOS } from "@/lib/manifold-seed";
+
 import { useTheme } from "@/lib/theme";
 import {
   W,
@@ -57,11 +59,20 @@ export default function ManifoldCanvas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [livePos, setLivePos] = useState<Map<string, { x: number; y: number }>>(new Map());
   const panState = useRef({ active: false, moved: false, startX: 0, startY: 0, origX: 0, origY: 0 });
+  const dragRef = useRef<{ id: string; offX: number; offY: number; moved: boolean; pointerId: number } | null>(null);
 
   const nodes = loadNodes();
   const edges = loadEdges();
   const placed = layoutNodes(nodes);
+  // overlay live positions during a drag
+  if (livePos.size) {
+    for (const [id, pos] of livePos) {
+      const p = placed.get(id);
+      if (p) placed.set(id, { ...p, x: pos.x, y: pos.y });
+    }
+  }
 
   const clientToSvg = useCallback((cx: number, cy: number) => {
     const svg = svgRef.current;
@@ -69,6 +80,15 @@ export default function ManifoldCanvas() {
     const rect = svg.getBoundingClientRect();
     return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
   }, []);
+
+  const clientToWorld = useCallback(
+    (cx: number, cy: number) => {
+      const { x, y } = clientToSvg(cx, cy);
+      return { x: (x - view.x) / view.scale, y: (y - view.y) / view.scale };
+    },
+    [clientToSvg, view.x, view.y, view.scale]
+  );
+
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
