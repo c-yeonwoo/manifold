@@ -93,7 +93,7 @@ export default function MantraList() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onDraftKey}
-          placeholder="새 확언 추가… (Cmd+Enter)"
+          placeholder="확언·명언·다짐 한 줄 추가… (Cmd+Enter)"
           className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/60"
         />
         <span className="font-mono text-[10px] text-muted-foreground/50">⌘↵</span>
