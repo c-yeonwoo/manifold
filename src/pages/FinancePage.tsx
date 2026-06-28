@@ -145,6 +145,18 @@ export default function FinancePage() {
     }
   };
 
+  const removeExpense = async (id: string) => {
+    try {
+      await deleteExpenseDb(id);
+      notifyExpensesChanged();
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "삭제 실패");
+    }
+  };
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const importJSON = async (file: File) => {
     if (!user) return;
     try {
