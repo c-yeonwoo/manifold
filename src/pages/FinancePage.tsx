@@ -209,6 +209,23 @@ export default function FinancePage() {
     total: monthExpenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
 
+  // Recent name suggestions for the currently selected category
+  const nameSuggestions = useMemo(() => {
+    const seen = new Map<string, { name: string; amount: number }>();
+    const sorted = [...yearExpenses].sort((a, b) =>
+      a.date < b.date ? 1 : a.date > b.date ? -1 : (a.created_at < b.created_at ? 1 : -1)
+    );
+    for (const e of sorted) {
+      if (e.category !== category) continue;
+      const key = e.name.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.set(key, { name: e.name, amount: e.amount });
+      if (seen.size >= 5) break;
+    }
+    return Array.from(seen.values());
+  }, [yearExpenses, category]);
+
+
   // Daily totals across the entire year (from yearExpenses)
   const dailyTotals = useMemo(() => {
     const map: Record<string, number> = {};
