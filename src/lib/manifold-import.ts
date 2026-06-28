@@ -40,19 +40,23 @@ const stripDecoration = (s: string) =>
 const layerFromText = (t: string): Layer | null => {
   const s = t.toUpperCase();
   if (/BASE|기반/.test(s)) return "base";
-  if (/CORE|엔진/.test(s)) return "core";
-  if (/OUTPUT|OUT\b|산출/.test(s)) return "output";
+  if (/CORE|엔진|축적/.test(s)) return "core";
+  if (/OUTPUT|OUT\b|산출|publish/i.test(s)) return "output";
+  if (/유지/.test(s)) return "base";
   return null;
 };
 
 const KIND_RULES: [RegExp, string][] = [
-  [/루틴|건강|운동|수면/, "routine"],
+  [/운동|헬스|러닝|테니스/, "exercise"],
+  [/언어|영어|일본어/, "language"],
+  [/음악|보컬|커버/, "music"],
   [/마인드셋|끌어당김|멘탈/, "mindset"],
+  [/루틴|미라클|수면|기상/, "routine"],
   [/커리어|이직|회사|직무/, "career"],
-  [/자동화|에이전트|인프라|무인/, "automation"],
+  [/자동화|에이전트|인프라|무인|AI/, "automation"],
   [/자산|부동산|집|대출|경매/, "asset"],
   [/사업|팔레트|샐비지|카페|벤처|혼술/, "venture"],
-  [/브랜드|콘텐츠|유튜브|음악|영상/, "brand"],
+  [/브랜드|콘텐츠|유튜브|영상/, "brand"],
   [/관계|결혼|연애|소셜/, "relationship"],
 ];
 const kindFromTitle = (t: string): string => {

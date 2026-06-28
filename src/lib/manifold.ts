@@ -26,10 +26,15 @@ export type FlowKind = "energy" | "cash" | "time" | "social" | "skill" | "focus"
 // Only a handful of nodes run at full intensity at once; the rest queue.
 export const ACTIVE_LIMIT = 3;
 
-export const LAYERS: { key: Layer; label: string; hue: number; blurb: string }[] = [
-  { key: "base",   label: "BASE",   hue: 142, blurb: "루틴·건강·마인드셋 — 에너지·집중·일관성 공급" },
-  { key: "core",   label: "CORE",   hue: 38,  blurb: "커리어 ↔ 자동화 — 전문성·현금흐름·시간 생성" },
-  { key: "output", label: "OUTPUT", hue: 210, blurb: "자산·사업·관계 — 코어 자원으로 굴러가 되먹임" },
+// Layers split by ROLE in the system, not by kind of activity:
+//   BASE  = 유지   — 안 하면 깎이는 상태를 유지한다 (maintain)
+//   CORE  = 축적   — 할수록 복리로 쌓이는 역량 (accumulate / compound)
+//   OUTPUT= 산출   — 쌓은 걸 밖으로 내보내 자산화한다 (publish)
+// This paradigm is universal; the actual nodes per person live in the seed.
+export const LAYERS: { key: Layer; label: string; role: string; hue: number; blurb: string }[] = [
+  { key: "base",   label: "BASE",   role: "유지", hue: 142, blurb: "안 하면 깎이는 상태를 유지 — 에너지·집중·일관성을 공급" },
+  { key: "core",   label: "CORE",   role: "축적", hue: 38,  blurb: "할수록 복리로 쌓이는 역량 — '끊기지 않음'이 변수(streak)" },
+  { key: "output", label: "OUTPUT", role: "산출", hue: 210, blurb: "쌓은 걸 밖으로 내보내 자산화 — 다시 BASE·CORE로 환류" },
 ];
 
 export const getLayer = (key: string) => LAYERS.find((l) => l.key === key);
@@ -47,12 +52,15 @@ export type Horizon = (typeof HORIZONS)[number];
 
 // Suggested node kinds (free text in the DB; these drive the picker).
 export const NODE_KINDS = [
-  "routine",
   "mindset",
-  "career",
+  "routine",
+  "exercise",
   "automation",
-  "asset",
+  "language",
+  "music",
+  "career",
   "venture",
+  "asset",
   "brand",
   "relationship",
   "goal",

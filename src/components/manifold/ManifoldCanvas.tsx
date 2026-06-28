@@ -204,7 +204,7 @@ export default function ManifoldCanvas() {
                   strokeWidth={1}
                 />
                 <text x={44} y={band.top + 22} fill={`hsl(${l.hue} 55% ${isLight ? 40 : 62}%)`} fontSize={12} fontWeight={600} style={{ fontFamily: "var(--mono-font)", letterSpacing: 2 }}>
-                  {l.label}
+                  {l.label} · {l.role}
                 </text>
               </g>
             );
