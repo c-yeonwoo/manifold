@@ -600,6 +600,7 @@ export type Database = {
       shared_finance_summaries: {
         Row: {
           id: string
+          is_public: boolean
           month: number
           note: string
           shared_at: string
@@ -609,6 +610,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          is_public?: boolean
           month: number
           note?: string
           shared_at?: string
@@ -618,6 +620,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          is_public?: boolean
           month?: number
           note?: string
           shared_at?: string
@@ -657,6 +660,15 @@ export type Database = {
     }
     Functions: {
       compute_streak: { Args: { _user_id: string }; Returns: number }
+      find_pair_by_invite: {
+        Args: { _invite_code: string }
+        Returns: {
+          a_user_id: string
+          b_user_id: string
+          id: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
