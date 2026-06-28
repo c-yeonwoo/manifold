@@ -105,6 +105,19 @@ export interface NodeLog {
   note: string;
 }
 
+export type MetricKind = "milestone" | "final";
+
+export interface Metric {
+  id: string;
+  label: string;     // "월 수입", "체중"
+  value: number;     // target, e.g. 1000
+  unit: string;      // "만원", "kg", "억", "세"
+  current?: number;  // optional current value (progress)
+  kind: MetricKind;  // milestone vs final target
+  nodeId?: string;   // optional link to a node
+  position: number;
+}
+
 export const todayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -183,6 +196,7 @@ let CURRENT_USER_ID: string | null = null;
 let NODES_CACHE: ManifoldNode[] = [];
 let EDGES_CACHE: ManifoldEdge[] = [];
 let LOGS_CACHE: Map<string, NodeLog> = new Map(); // key = `${nodeId}__${date}`
+let METRICS_CACHE: Metric[] = [];
 let HYDRATED = false;
 
 const emit = () => window.dispatchEvent(new Event("manifold-updated"));
@@ -195,15 +209,40 @@ const dbRowToLog = (r: any): NodeLog => ({
   note: r.note ?? "",
 });
 
+const dbRowToMetric = (r: any): Metric => ({
+  id: r.id,
+  label: r.label,
+  value: Number(r.value),
+  unit: r.unit ?? "",
+  current: r.current != null ? Number(r.current) : undefined,
+  kind: (r.kind as MetricKind) ?? "milestone",
+  nodeId: r.node_id ?? undefined,
+  position: r.position ?? 0,
+});
+
+const metricToDbRow = (m: Metric, userId: string) => ({
+  id: m.id,
+  user_id: userId,
+  label: m.label,
+  value: m.value,
+  unit: m.unit ?? "",
+  current: m.current ?? null,
+  kind: m.kind,
+  node_id: m.nodeId ?? null,
+  position: m.position ?? 0,
+});
+
 // ---- guest (localStorage) fallback -----------------------------------------
 
 const guestNodesKey = () => `manifold_nodes__guest`;
 const guestEdgesKey = () => `manifold_edges__guest`;
+const guestMetricsKey = () => `manifold_metrics__guest`;
 const guestLogKey = (nodeId: string, date: string) => `manifold_log__guest__${nodeId}__${date}`;
 
 function loadGuest() {
   NODES_CACHE = loadJSON<ManifoldNode[]>(guestNodesKey(), []);
   EDGES_CACHE = loadJSON<ManifoldEdge[]>(guestEdgesKey(), []);
+  METRICS_CACHE = loadJSON<Metric[]>(guestMetricsKey(), []);
   LOGS_CACHE = new Map();
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
@@ -220,6 +259,7 @@ function loadGuest() {
 function persistGuest() {
   saveJSON(guestNodesKey(), NODES_CACHE);
   saveJSON(guestEdgesKey(), EDGES_CACHE);
+  saveJSON(guestMetricsKey(), METRICS_CACHE);
 }
 
 async function hydrateFromSupabase(userId: string) {
@@ -227,11 +267,13 @@ async function hydrateFromSupabase(userId: string) {
   NODES_CACHE = [];
   EDGES_CACHE = [];
   LOGS_CACHE = new Map();
+  METRICS_CACHE = [];
 
-  const [{ data: nodes }, { data: edges }, { data: logs }] = await Promise.all([
+  const [{ data: nodes }, { data: edges }, { data: logs }, { data: metrics }] = await Promise.all([
     db.from("manifold_nodes").select("*").eq("user_id", userId),
     db.from("manifold_edges").select("*").eq("user_id", userId),
     db.from("manifold_node_logs").select("*").eq("user_id", userId),
+    db.from("manifold_metrics").select("*").eq("user_id", userId),
   ]);
 
   NODES_CACHE = (nodes ?? []).map(dbRowToNode);
@@ -240,6 +282,7 @@ async function hydrateFromSupabase(userId: string) {
     const log = dbRowToLog(r);
     LOGS_CACHE.set(logCacheKey(log.nodeId, log.date), log);
   }
+  METRICS_CACHE = (metrics ?? []).map(dbRowToMetric).sort((a, b) => a.position - b.position);
   HYDRATED = true;
   emit();
 }
@@ -436,4 +479,74 @@ export function listNodeLogs(nodeId: string): NodeLog[] {
   const out: NodeLog[] = [];
   for (const [k, v] of LOGS_CACHE) if (k.startsWith(`${nodeId}__`)) out.push(v);
   return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// ---- metrics (measurable life targets) -------------------------------------
+
+export function loadMetrics(): Metric[] {
+  return METRICS_CACHE;
+}
+
+export function upsertMetric(metric: Metric) {
+  const idx = METRICS_CACHE.findIndex((m) => m.id === metric.id);
+  if (idx >= 0) METRICS_CACHE[idx] = metric;
+  else METRICS_CACHE.push(metric);
+  METRICS_CACHE.sort((a, b) => a.position - b.position);
+  emit();
+
+  if (CURRENT_USER_ID) {
+    db.from("manifold_metrics")
+      .upsert(metricToDbRow(metric, CURRENT_USER_ID))
+      .then(({ error }: any) => error && console.error("[manifold] metric upsert failed", error));
+  } else {
+    persistGuest();
+  }
+}
+
+export function deleteMetric(id: string) {
+  METRICS_CACHE = METRICS_CACHE.filter((m) => m.id !== id);
+  emit();
+  if (CURRENT_USER_ID) {
+    db.from("manifold_metrics").delete().eq("id", id).then(({ error }: any) => {
+      if (error) console.error("[manifold] metric delete failed", error);
+    });
+  } else {
+    persistGuest();
+  }
+}
+
+export interface MetricSuggestion {
+  label: string;
+  value: number;
+  unit: string;
+  nodeId?: string;
+}
+
+// Units we recognize when scanning node text for measurable targets.
+const UNIT_RE = "만원|억원|억|만|원|kg|kcal|%|세|km|개|회|명|구독|영상|평|시간|일";
+
+/**
+ * Scan node titles/descriptions for "<number><unit>" patterns and propose
+ * them as metric candidates — a lightweight "system suggests" without an LLM.
+ * (An AI extractor can later replace this with richer parsing.)
+ */
+export function suggestMetricsFromNodes(): MetricSuggestion[] {
+  const re = new RegExp(`([0-9][0-9,\\.]*)\\s*(${UNIT_RE})`, "g");
+  const seen = new Set<string>();
+  const out: MetricSuggestion[] = [];
+  for (const n of NODES_CACHE) {
+    const text = `${n.title} ${n.description}`;
+    let m: RegExpExecArray | null;
+    re.lastIndex = 0;
+    while ((m = re.exec(text))) {
+      const value = parseFloat(m[1].replace(/,/g, ""));
+      if (!isFinite(value)) continue;
+      const unit = m[2];
+      const key = `${value}__${unit}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ label: n.title, value, unit, nodeId: n.id });
+    }
+  }
+  return out;
 }

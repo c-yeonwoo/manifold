@@ -2,10 +2,13 @@ import {
   loadNodes,
   upsertNode,
   upsertEdge,
+  upsertMetric,
   uid,
   type Layer,
   type ManifoldNode,
   type ManifoldEdge,
+  type Metric,
+  type MetricKind,
   type NodeStatus,
   type EdgeType,
   type FlowKind,
@@ -98,9 +101,28 @@ const SEED_EDGES: SeedEdge[] = [
   { from: "asset",    to: "career",   type: "gates",      flow: "cash",   label: "주담대 실행 후 이직" },
 ];
 
+// Measurable milestones shown as big numbers on the home dashboard.
+// (numbers are milestones, not final ends — except 순자산 marked final.)
+interface SeedMetric {
+  label: string;
+  value: number;
+  unit: string;
+  current?: number;
+  kind: MetricKind;
+  node?: string; // links to a SeedNode key
+}
+const SEED_METRICS: SeedMetric[] = [
+  { label: "체중",   value: 70,   unit: "kg",   kind: "milestone", node: "exercise" },
+  { label: "근육량", value: 38,   unit: "kg",   current: 34, kind: "milestone", node: "exercise" },
+  { label: "월 수입", value: 1000, unit: "만원", current: 400, kind: "milestone", node: "career" },
+  { label: "순자산", value: 10,   unit: "억",   current: 2,  kind: "final",     node: "asset" },
+  { label: "결혼",   value: 35,   unit: "세",   kind: "milestone", node: "relation" },
+];
+
 export interface LifeOSSeed {
   nodes: ManifoldNode[];
   edges: ManifoldEdge[];
+  metrics: Metric[];
 }
 
 /** Build the seed graph with fresh ids (does not persist). */
@@ -136,7 +158,18 @@ export function buildLifeOSSeed(): LifeOSSeed {
     label: e.label,
   }));
 
-  return { nodes, edges };
+  const metrics: Metric[] = SEED_METRICS.map((m, i) => ({
+    id: uid(),
+    label: m.label,
+    value: m.value,
+    unit: m.unit,
+    current: m.current,
+    kind: m.kind,
+    nodeId: m.node ? idByKey.get(m.node) : undefined,
+    position: i,
+  }));
+
+  return { nodes, edges, metrics };
 }
 
 /**
@@ -146,8 +179,9 @@ export function buildLifeOSSeed(): LifeOSSeed {
  */
 export function seedLifeOS(opts: { force?: boolean } = {}): number {
   if (!opts.force && loadNodes().length > 0) return 0;
-  const { nodes, edges } = buildLifeOSSeed();
+  const { nodes, edges, metrics } = buildLifeOSSeed();
   nodes.forEach(upsertNode);
   edges.forEach(upsertEdge);
+  metrics.forEach(upsertMetric);
   return nodes.length;
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ManifoldCanvas from "@/components/manifold/ManifoldCanvas";
 import TimelineView from "@/components/manifold/TimelineView";
+import MetricsBar from "@/components/manifold/MetricsBar";
 import { Workflow, CalendarRange } from "lucide-react";
 
 type ViewMode = "manifold" | "timeline";
@@ -16,6 +17,8 @@ export default function MindmapHome() {
 
   return (
     <div className="animate-fade-up relative">
+      <MetricsBar />
+
       <div className="flex items-center justify-between gap-4 mb-5">
         <div>
           <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Manifold</p>
