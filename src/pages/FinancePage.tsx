@@ -110,46 +110,40 @@ export default function FinancePage() {
 
   const addExpense = async () => {
     if (!user || !name.trim() || !amount) return;
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt < 0) {
+    const amt = parseAmount(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
       toast.error("올바른 금액을 입력해주세요");
       return;
     }
     setBusy(true);
     try {
+      const dateStr = isoDate(date);
       await createExpense({
         user_id: user.id,
-        date,
+        date: dateStr,
         category,
         name: name.trim(),
         amount: amt,
       });
       setName("");
       setAmount("");
-      const targetMonth = date.slice(0, 7);
+      const targetMonth = dateStr.slice(0, 7);
       if (targetMonth !== monthKey) {
         toast.success(`${targetMonth} 에 추가됐어요`);
+      } else {
+        setJustSaved(true);
+        window.setTimeout(() => setJustSaved(false), 1200);
       }
       notifyExpensesChanged();
       await refresh();
+      // keep category, refocus name for continuous entry
+      window.setTimeout(() => nameInputRef.current?.focus(), 0);
     } catch (e: any) {
       toast.error(e.message ?? "추가 실패");
     } finally {
       setBusy(false);
     }
   };
-
-  const removeExpense = async (id: string) => {
-    try {
-      await deleteExpenseDb(id);
-      notifyExpensesChanged();
-      await refresh();
-    } catch (e: any) {
-      toast.error(e.message ?? "삭제 실패");
-    }
-  };
-
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const importJSON = async (file: File) => {
     if (!user) return;
