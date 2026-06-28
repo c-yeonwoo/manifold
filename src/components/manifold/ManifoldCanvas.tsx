@@ -3,6 +3,7 @@ import {
   loadNodes,
   loadEdges,
   todayNodeProgress,
+  upsertNode,
   LAYERS,
   EDGE_META,
   type ManifoldNode,
@@ -10,6 +11,7 @@ import {
   type EdgeType,
 } from "@/lib/manifold";
 import { seedLifeOS } from "@/lib/manifold-seed";
+
 import { useTheme } from "@/lib/theme";
 import {
   W,
@@ -57,11 +59,20 @@ export default function ManifoldCanvas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [livePos, setLivePos] = useState<Map<string, { x: number; y: number }>>(new Map());
   const panState = useRef({ active: false, moved: false, startX: 0, startY: 0, origX: 0, origY: 0 });
+  const dragRef = useRef<{ id: string; offX: number; offY: number; moved: boolean; pointerId: number } | null>(null);
 
   const nodes = loadNodes();
   const edges = loadEdges();
   const placed = layoutNodes(nodes);
+  // overlay live positions during a drag
+  if (livePos.size) {
+    for (const [id, pos] of livePos) {
+      const p = placed.get(id);
+      if (p) placed.set(id, { ...p, x: pos.x, y: pos.y });
+    }
+  }
 
   const clientToSvg = useCallback((cx: number, cy: number) => {
     const svg = svgRef.current;
@@ -69,6 +80,15 @@ export default function ManifoldCanvas() {
     const rect = svg.getBoundingClientRect();
     return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
   }, []);
+
+  const clientToWorld = useCallback(
+    (cx: number, cy: number) => {
+      const { x, y } = clientToSvg(cx, cy);
+      return { x: (x - view.x) / view.scale, y: (y - view.y) / view.scale };
+    },
+    [clientToSvg, view.x, view.y, view.scale]
+  );
+
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
@@ -104,6 +124,25 @@ export default function ManifoldCanvas() {
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    // node drag takes precedence
+    const d = dragRef.current;
+    if (d) {
+      const w = clientToWorld(e.clientX, e.clientY);
+      const nx = w.x - d.offX;
+      const ny = w.y - d.offY;
+      if (!d.moved) {
+        const startNode = placed.get(d.id);
+        if (startNode && Math.hypot(nx - startNode.x, ny - startNode.y) > 2) d.moved = true;
+      }
+      if (d.moved) {
+        setLivePos((prev) => {
+          const next = new Map(prev);
+          next.set(d.id, { x: nx, y: ny });
+          return next;
+        });
+      }
+      return;
+    }
     const s = panState.current;
     if (!s.active) return;
     const svg = svgRef.current;
@@ -115,7 +154,34 @@ export default function ManifoldCanvas() {
     setView((v) => ({ ...v, x: s.origX + dx, y: s.origY + dy }));
   };
   const onPointerUp = () => {
+    const d = dragRef.current;
+    if (d) {
+      if (d.moved) {
+        const pos = livePos.get(d.id);
+        const node = nodes.find((n) => n.id === d.id);
+        if (pos && node) {
+          upsertNode({ ...node, x: Math.round(pos.x), y: Math.round(pos.y) });
+        }
+        // clear after commit so cache snaps in
+        setLivePos((prev) => {
+          const next = new Map(prev);
+          next.delete(d.id);
+          return next;
+        });
+      }
+      dragRef.current = null;
+    }
     panState.current.active = false;
+  };
+
+  const onNodePointerDown = (id: string, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const w = clientToWorld(e.clientX, e.clientY);
+    const p = placed.get(id);
+    if (!p) return;
+    dragRef.current = { id, offX: w.x - p.x, offY: w.y - p.y, moved: false, pointerId: e.pointerId };
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
   const zoomBy = (factor: number) => {
@@ -130,9 +196,10 @@ export default function ManifoldCanvas() {
   const reset = () => setView({ x: 0, y: 0, scale: 1 });
 
   const selectNode = (id: string) => {
-    if (panState.current.moved) return;
+    if (panState.current.moved || dragRef.current?.moved) return;
     setSelectedId((cur) => (cur === id ? null : id));
   };
+
 
   // adjacency for highlight when a node is selected
   const incident = (edge: ManifoldEdge) =>
@@ -235,9 +302,12 @@ export default function ManifoldCanvas() {
               isLight={isLight}
               selected={selectedId === p.node.id}
               dimmed={selectedId != null && !connectedNodeIds.has(p.node.id)}
+              dragging={dragRef.current?.id === p.node.id}
               onClick={() => selectNode(p.node.id)}
+              onPointerDown={(e) => onNodePointerDown(p.node.id, e)}
             />
           ))}
+
         </g>
       </svg>
 
@@ -307,13 +377,17 @@ function NodeShape({
   isLight,
   selected,
   dimmed,
+  dragging,
   onClick,
+  onPointerDown,
 }: {
   placed: Placed;
   isLight: boolean;
   selected: boolean;
   dimmed: boolean;
+  dragging?: boolean;
   onClick: () => void;
+  onPointerDown?: (e: React.PointerEvent<SVGGElement>) => void;
 }) {
   const { node, x, y } = placed;
   const layer = LAYERS.find((l) => l.key === node.layer)!;
@@ -337,12 +411,14 @@ function NodeShape({
   return (
     <g
       onClick={onClick}
-      style={{ cursor: "pointer", opacity: dimmed ? 0.28 : isDone ? 0.7 : 1, transition: "opacity 0.25s ease" }}
+      onPointerDown={onPointerDown}
+      style={{ cursor: dragging ? "grabbing" : "grab", opacity: dimmed ? 0.28 : isDone ? 0.7 : 1, transition: dragging ? "none" : "opacity 0.25s ease" }}
     >
       <title>{node.title}</title>
       {isActive && (
         <rect x={x - w / 2 - 3} y={y - h / 2 - 3} width={w + 6} height={h + 6} rx={14} fill="none" stroke={`hsl(${hue} 70% 55%)`} strokeWidth={1} opacity={0.4} className="animate-pulse-amber" />
       )}
+
       <rect
         x={x - w / 2}
         y={y - h / 2}
