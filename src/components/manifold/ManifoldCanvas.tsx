@@ -124,6 +124,25 @@ export default function ManifoldCanvas() {
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    // node drag takes precedence
+    const d = dragRef.current;
+    if (d) {
+      const w = clientToWorld(e.clientX, e.clientY);
+      const nx = w.x - d.offX;
+      const ny = w.y - d.offY;
+      if (!d.moved) {
+        const startNode = placed.get(d.id);
+        if (startNode && Math.hypot(nx - startNode.x, ny - startNode.y) > 2) d.moved = true;
+      }
+      if (d.moved) {
+        setLivePos((prev) => {
+          const next = new Map(prev);
+          next.set(d.id, { x: nx, y: ny });
+          return next;
+        });
+      }
+      return;
+    }
     const s = panState.current;
     if (!s.active) return;
     const svg = svgRef.current;
@@ -135,7 +154,34 @@ export default function ManifoldCanvas() {
     setView((v) => ({ ...v, x: s.origX + dx, y: s.origY + dy }));
   };
   const onPointerUp = () => {
+    const d = dragRef.current;
+    if (d) {
+      if (d.moved) {
+        const pos = livePos.get(d.id);
+        const node = nodes.find((n) => n.id === d.id);
+        if (pos && node) {
+          upsertNode({ ...node, x: Math.round(pos.x), y: Math.round(pos.y) });
+        }
+        // clear after commit so cache snaps in
+        setLivePos((prev) => {
+          const next = new Map(prev);
+          next.delete(d.id);
+          return next;
+        });
+      }
+      dragRef.current = null;
+    }
     panState.current.active = false;
+  };
+
+  const onNodePointerDown = (id: string, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const w = clientToWorld(e.clientX, e.clientY);
+    const p = placed.get(id);
+    if (!p) return;
+    dragRef.current = { id, offX: w.x - p.x, offY: w.y - p.y, moved: false, pointerId: e.pointerId };
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
   const zoomBy = (factor: number) => {
@@ -150,9 +196,10 @@ export default function ManifoldCanvas() {
   const reset = () => setView({ x: 0, y: 0, scale: 1 });
 
   const selectNode = (id: string) => {
-    if (panState.current.moved) return;
+    if (panState.current.moved || dragRef.current?.moved) return;
     setSelectedId((cur) => (cur === id ? null : id));
   };
+
 
   // adjacency for highlight when a node is selected
   const incident = (edge: ManifoldEdge) =>
