@@ -489,8 +489,8 @@ export default function FinancePage() {
         {filterDate && (
           <div className="mb-3 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] bg-primary/10 text-primary border border-primary/20">
-              {filterDate} 만 보기
-              <button onClick={() => setFilterDate(null)} className="hover:text-foreground">
+              {filterDate} 내역 · 추가하면 이 날짜로 저장돼요
+              <button onClick={() => { setFilterDate(null); setDate(new Date()); }} className="hover:text-foreground">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -629,9 +629,16 @@ export default function FinancePage() {
                         disabled={!valid}
                         onClick={() => {
                           if (!valid) return;
-                          setFilterDate((cur) => (cur === day.key ? null : day.key));
+                          const next = filterDate === day.key ? null : day.key;
+                          setFilterDate(next);
+                          if (next) {
+                            setDate(new Date(day.date));
+                            window.setTimeout(() => nameInputRef.current?.focus(), 0);
+                          } else {
+                            setDate(new Date());
+                          }
                         }}
-                        title={valid ? `${day.date.getMonth()+1}/${day.date.getDate()} — ${day.amount.toLocaleString()}원` : ""}
+                        title={valid ? `${day.date.getMonth()+1}/${day.date.getDate()} — ${day.amount.toLocaleString()}원 (클릭해서 추가/수정)` : ""}
                         className={`w-[12px] h-[12px] rounded-[2px] transition-colors duration-150 ${
                           !valid
                             ? "bg-secondary/30"
