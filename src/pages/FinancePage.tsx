@@ -489,8 +489,8 @@ export default function FinancePage() {
         {filterDate && (
           <div className="mb-3 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] bg-primary/10 text-primary border border-primary/20">
-              {filterDate} 만 보기
-              <button onClick={() => setFilterDate(null)} className="hover:text-foreground">
+              {filterDate} 내역 · 추가하면 이 날짜로 저장돼요
+              <button onClick={() => { setFilterDate(null); setDate(new Date()); }} className="hover:text-foreground">
                 <X className="w-3 h-3" />
               </button>
             </span>
